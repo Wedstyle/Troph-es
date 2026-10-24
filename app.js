@@ -6,8 +6,9 @@
   "use strict";
 
   // ⚠️ CONFIGURATION SUPABASE
-  const SUPABASE_URL = "https://ahacsjnxswymhmqmizd.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_5_mW0UxmK0PyVnr3nzfZgw_r-0rsMqH";
+  const SUPABASE_URL = "https://ahacsjnxwswymhmqmizd.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoYWNzam54d3N3eW1obXFtaXpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzE5NjMsImV4cCI6MjEwODQ0Nzk2M30.clKOjewbJN1NnkxokpElE0KwueoX0-R_1tNPU9OMf_I";
 
   const supabase = window.supabase.createClient(
     SUPABASE_URL,
@@ -109,18 +110,16 @@
     try {
       const earnedAt = earned ? new Date().toISOString() : null;
 
-      const { error } = await supabase
-        .from("trophy_progress")
-        .upsert(
-          {
-            user_id: state.user.id,
-            game_id: gameId,
-            trophy_id: trophyId,
-            earned: earned,
-            earned_at: earnedAt,
-          },
-          { onConflict: "user_id, game_id, trophy_id" },
-        );
+      const { error } = await supabase.from("trophy_progress").upsert(
+        {
+          user_id: state.user.id,
+          game_id: gameId,
+          trophy_id: trophyId,
+          earned: earned,
+          earned_at: earnedAt,
+        },
+        { onConflict: "user_id, game_id, trophy_id" },
+      );
 
       if (error) throw error;
       console.log(`💾 Trophée ${trophyId} sauvegardé sur Supabase.`);
