@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Autonome GitHub)
+   PS Trophy Viewer — app.js (Version Autonome + Stats)
    ============================================================ */
 
 (() => {
@@ -29,20 +29,19 @@
         })[c],
     );
 
-  // --- GESTION DU CLOUD GITHUB (Progression) ---
+  // --- GESTION DU CLOUD GITHUB ---
   function getCreds() {
     return {
       token: localStorage.getItem("gh_token"),
       gistId: localStorage.getItem("gh_gist_id"),
     };
   }
-
   function setupCloud() {
     let { token, gistId } = getCreds();
     if (!token || !gistId) {
-      token = prompt("☁️ Colle ton TOKEN GitHub ici (commence par ghp_) :");
+      token = prompt("☁️ Colle ton TOKEN GitHub ici :");
       if (token) localStorage.setItem("gh_token", token.trim());
-      gistId = prompt("☁️ Colle l'ID de ton GIST secret ici :");
+      gistId = prompt("☁️ Colle l'ID de ton GIST :");
       if (gistId) localStorage.setItem("gh_gist_id", gistId.trim());
     }
     return !!getCreds().token;
@@ -51,7 +50,6 @@
   async function pushToCloud() {
     const { token, gistId } = getCreds();
     if (!token || !gistId) return;
-
     const progress = localStorage.getItem("ps5_trophy_progress") || "{}";
     try {
       await fetch(`https://api.github.com/gists/${gistId}`, {
@@ -72,7 +70,6 @@
   async function pullFromCloud() {
     const { token, gistId } = getCreds();
     if (!token || !gistId) return false;
-
     try {
       const res = await fetch(`https://api.github.com/gists/${gistId}`, {
         headers: {
@@ -88,25 +85,22 @@
           const localProgress = JSON.parse(
             localStorage.getItem("ps5_trophy_progress") || "{}",
           );
-
           const merged = { ...cloudProgress };
           for (const gameId in localProgress) {
             if (!merged[gameId]) merged[gameId] = {};
-            for (const tid in localProgress[gameId]) {
+            for (const tid in localProgress[gameId])
               if (localProgress[gameId][tid]) merged[gameId][tid] = true;
-            }
           }
           localStorage.setItem("ps5_trophy_progress", JSON.stringify(merged));
           return true;
         }
       }
     } catch (e) {
-      console.error("Erreur de chargement Cloud", e);
+      console.error("Erreur Cloud", e);
     }
     return false;
   }
 
-  // --- SAUVEGARDE PROGRESSION ---
   function saveProgressToStorage() {
     const progress = {};
     state.games.forEach((g) => {
@@ -125,11 +119,10 @@
     try {
       const progress = JSON.parse(saved);
       state.games.forEach((g) => {
-        if (progress[g.npcommid]) {
+        if (progress[g.npcommid])
           g.trophies.forEach((t) => {
             if (progress[g.npcommid][t.id]) t.earned = true;
           });
-        }
       });
     } catch (e) {}
   }
@@ -140,6 +133,64 @@
       <path d="M7 4.4C4.3 4.7 4.3 8 7 8.2M17 4.4c2.7.3 2.7 3.6 0 3.8" fill="none" stroke="currentColor" stroke-width="1.3"/>
       <path d="M11.1 11h1.8v6h-1.8z" fill="currentColor"/><rect x="7.4" y="17" width="9.2" height="3.2" rx="1.3" fill="currentColor"/>
     </svg>`;
+  }
+
+  // --- CALCUL DES STATS GLOBALES ---
+  function renderGlobalStats() {
+    const container = $("#global-stats");
+    if (!container) return;
+
+    if (state.games.length === 0) {
+      container.innerHTML = "";
+      return;
+    }
+
+    let totalEarned = 0;
+    let totalTrophies = 0;
+    const globalGrades = {
+      platinum: [0, 0],
+      gold: [0, 0],
+      silver: [0, 0],
+      bronze: [0, 0],
+    };
+
+    state.games.forEach((g) => {
+      g.trophies.forEach((t) => {
+        totalTrophies++;
+        if (!globalGrades[t.grade]) return;
+        globalGrades[t.grade][1]++;
+        if (t.earned) {
+          totalEarned++;
+          globalGrades[t.grade][0]++;
+        }
+      });
+    });
+
+    const globalPct = totalTrophies
+      ? Math.round((totalEarned / totalTrophies) * 100)
+      : 0;
+
+    container.innerHTML = `
+      <div class="gs-card main-stat">
+        <div class="gs-title">Complétion Globale</div>
+        <div class="gs-value">${globalPct}%</div>
+        <div class="gs-progress-bar"><i style="width:${globalPct}%"></i></div>
+        <div style="font-size:12px; color:var(--txt-muted); margin-top:8px; font-weight:600;">
+          ${totalEarned} / ${totalTrophies} trophées obtenus
+        </div>
+      </div>
+      ${GRADE_ORDER.map(
+        (grade) => `
+        <div class="gs-card">
+          <div class="gs-title">${GRADE_LABEL[grade]}</div>
+          <div class="gs-icon-row">
+            ${trophySvg(grade, 20)}
+            <div class="gs-value">${globalGrades[grade][0]} <small>/ ${globalGrades[grade][1]}</small></div>
+          </div>
+        </div>
+      `,
+      ).join("")}
+    `;
   }
 
   function addOrUpdateGame(game) {
@@ -202,6 +253,10 @@
 
   function renderDashboard() {
     $("#games-count").textContent = `${state.games.length} jeu(x)`;
+
+    // On affiche les stats globales avant la grille
+    renderGlobalStats();
+
     const grid = $("#game-grid");
     if (state.games.length === 0) {
       grid.innerHTML =
@@ -411,8 +466,7 @@
   // --- CHARGEMENT INITIAL DEPUIS GITHUB ---
   async function loadFromGitHub() {
     try {
-      // On lit le data.json qui est à côté de index.html
-      const res = await fetch("data.json?t=" + Date.now()); // Le ?t= évite le cache
+      const res = await fetch("data.json?t=" + Date.now());
       if (res.ok) {
         const games = await res.json();
         if (Array.isArray(games) && games.length > 0) {
@@ -422,25 +476,16 @@
           return true;
         }
       }
-    } catch (e) {
-      console.log("Pas de data.json sur le serveur, on attend le pont local.");
-    }
+    } catch (e) {}
     return false;
   }
 
   async function init() {
     showView("drop");
-    // 1. On tente de charger depuis GitHub
     const loaded = await loadFromGitHub();
-
-    // 2. Si on n'a rien trouvé, on tente la mémoire locale
     if (!loaded) {
-      if (getCreds().token) {
-        await pullFromCloud();
-      }
+      if (getCreds().token) await pullFromCloud();
     }
-
-    // 3. On lance la connexion locale (au cas où on est sur le PC avec le .bat)
     connectWebSocket();
   }
 
