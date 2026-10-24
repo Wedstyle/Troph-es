@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Autonome + Stats)
+   PS Trophy Viewer — app.js (Version Autonome + Stats + Icônes)
    ============================================================ */
 
 (() => {
@@ -135,7 +135,7 @@
     </svg>`;
   }
 
-  // --- CALCUL DES STATS GLOBALES ---
+  // --- CALCUL ET AFFICHAGE DES STATS GLOBALES ---
   function renderGlobalStats() {
     const container = $("#global-stats");
     if (!container) return;
@@ -253,8 +253,6 @@
 
   function renderDashboard() {
     $("#games-count").textContent = `${state.games.length} jeu(x)`;
-
-    // On affiche les stats globales avant la grille
     renderGlobalStats();
 
     const grid = $("#game-grid");
@@ -263,18 +261,26 @@
         '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1;">Aucun jeu chargé.</p>';
       return;
     }
+
     grid.innerHTML = state.games
       .map((g) => {
         const { stats, pct } = computeStats(g);
+
+        // On utilise l'image du jeu si elle existe, sinon l'étoile
+        const gameIcon = g.iconUrl
+          ? `<img src="${g.iconUrl}" style="width:100%;height:100%;object-fit:cover;">`
+          : `<svg viewBox="0 0 24 24" fill="none" stroke="#0072ce" stroke-width="2"><path d="M12 2L15 9H22L16 14L18 21L12 17L6 21L8 14L2 9H9L12 2Z"/></svg>`;
+
         const trophiesHtml = GRADE_ORDER.map(
           (grade) => `
         <div class="gc-trophy">${trophySvg(grade, 16)}<span>${stats[grade][0]}<small>/${stats[grade][1]}</small></span></div>
       `,
         ).join("");
+
         return `
         <div class="game-card" data-id="${esc(g.npcommid)}">
           <div class="gc-top">
-            <div class="gc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#0072ce" stroke-width="2"><path d="M12 2L15 9H22L16 14L18 21L12 17L6 21L8 14L2 9H9L12 2Z"/></svg></div>
+            <div class="gc-icon">${gameIcon}</div>
             <div class="gc-info"><div class="gc-title">${esc(g.title)}</div><div class="gc-platform">${esc(g.platform)}</div></div>
           </div>
           <div class="gc-progress">
@@ -307,14 +313,20 @@
       <div class="stat">${trophySvg(g, 22)}<span class="stat-v">${stats[g][0]}<small>/${stats[g][1]}</small></span></div>
     `,
     ).join("");
+
     const bgStyle = game.backgroundUrl
       ? `background-image: url('${game.backgroundUrl}');`
       : "";
 
+    // On utilise l'image du jeu si elle existe, sinon l'étoile
+    const gameIcon = game.iconUrl
+      ? `<img src="${game.iconUrl}" style="width:100%;height:100%;object-fit:cover;">`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="#0072ce" stroke-width="2"><path d="M12 2L15 9H22L16 14L18 21L12 17L6 21L8 14L2 9H9L12 2Z"/></svg>`;
+
     $("#game-detail").innerHTML = `
       <div class="game-header" style="${bgStyle}">
         <div class="gh-top">
-          <div class="gh-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#0072ce" stroke-width="2"><path d="M12 2L15 9H22L16 14L18 21L12 17L6 21L8 14L2 9H9L12 2Z"/></svg></div>
+          <div class="gh-icon">${gameIcon}</div>
           <div class="gh-info"><h1 class="gh-title">${esc(game.title)}</h1><div class="gh-meta">${esc(game.platform)} · ${earned}/${total} trophées</div></div>
           <div class="gh-progress">
             <div class="gh-pct">${pct}<small>%</small></div>
