@@ -1,11 +1,26 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Autonome + Stats + Icônes)
+   PS Trophy Viewer — app.js (Version Supabase Connectée)
    ============================================================ */
 
 (() => {
   "use strict";
 
-  const state = { games: [], view: "drop", currentId: null, search: "" };
+  // ⚠️ CONFIGURATION SUPABASE (Tes clés sont déjà intégrées)
+  const SUPABASE_URL = "https://ahacsjnxswymhmqmizd.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_5_mW0UxmK0PyVnr3nzfZgw_r-0rsMqH";
+
+  const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+  );
+
+  const state = {
+    games: [],
+    view: "drop",
+    currentId: null,
+    search: "",
+    user: null,
+  };
   const GRADE_ORDER = ["platinum", "gold", "silver", "bronze"];
   const GRADE_LABEL = {
     platinum: "Platine",
@@ -29,104 +44,72 @@
         })[c],
     );
 
-  // --- GESTION DU CLOUD GITHUB ---
-  function getCreds() {
-    return {
-      token: localStorage.getItem("gh_token"),
-      gistId: localStorage.getItem("gh_gist_id"),
-    };
-  }
-  function setupCloud() {
-    let { token, gistId } = getCreds();
-    if (!token || !gistId) {
-      token = prompt("☁️ Colle ton TOKEN GitHub ici :");
-      if (token) localStorage.setItem("gh_token", token.trim());
-      gistId = prompt("☁️ Colle l'ID de ton GIST :");
-      if (gistId) localStorage.setItem("gh_gist_id", gistId.trim());
-    }
-    return !!getCreds().token;
-  }
-
-  async function pushToCloud() {
-    const { token, gistId } = getCreds();
-    if (!token || !gistId) return;
-    const progress = localStorage.getItem("ps5_trophy_progress") || "{}";
+  // --- GESTION SUPABASE ---
+  async function initSupabase() {
     try {
-      await fetch(`https://api.github.com/gists/${gistId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-        },
-        body: JSON.stringify({
-          files: { "trophy_progress.json": { content: progress } },
-        }),
-      });
+      // Connexion anonyme (crée un utilisateur unique dans la base)
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+      state.user = data.user;
+      console.log("✅ Session anonyme Supabase créée :", state.user.id);
     } catch (e) {
-      console.error("Erreur Cloud", e);
+      console.error("❌ Erreur Supabase Auth :", e);
     }
   }
 
-  async function pullFromCloud() {
-    const { token, gistId } = getCreds();
-    if (!token || !gistId) return false;
+  async function loadProgressFromSupabase() {
+    if (!state.user) return;
     try {
-      const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const cloudContent = data.files["trophy_progress.json"]?.content;
-        if (cloudContent) {
-          const cloudProgress = JSON.parse(cloudContent);
-          const localProgress = JSON.parse(
-            localStorage.getItem("ps5_trophy_progress") || "{}",
-          );
-          const merged = { ...cloudProgress };
-          for (const gameId in localProgress) {
-            if (!merged[gameId]) merged[gameId] = {};
-            for (const tid in localProgress[gameId])
-              if (localProgress[gameId][tid]) merged[gameId][tid] = true;
+      const { data, error } = await supabase
+        .from("trophy_progress")
+        .select("game_id, trophy_id, earned")
+        .eq("user_id", state.user.id);
+
+      if (error) throw error;
+
+      if (data) {
+        const progressMap = {};
+        data.forEach((p) => {
+          if (!progressMap[p.game_id]) progressMap[p.game_id] = {};
+          if (p.earned) progressMap[p.game_id][p.trophy_id] = true;
+        });
+
+        state.games.forEach((g) => {
+          if (progressMap[g.npcommid]) {
+            g.trophies.forEach((t) => {
+              if (progressMap[g.npcommid][t.id]) t.earned = true;
+            });
           }
-          localStorage.setItem("ps5_trophy_progress", JSON.stringify(merged));
-          return true;
-        }
+        });
+        console.log("🔄 Progression chargée depuis Supabase.");
       }
     } catch (e) {
-      console.error("Erreur Cloud", e);
+      console.error("❌ Erreur chargement Supabase :", e);
     }
-    return false;
   }
 
-  function saveProgressToStorage() {
-    const progress = {};
-    state.games.forEach((g) => {
-      progress[g.npcommid] = {};
-      g.trophies.forEach((t) => {
-        if (t.earned) progress[g.npcommid][t.id] = true;
-      });
-    });
-    localStorage.setItem("ps5_trophy_progress", JSON.stringify(progress));
-    pushToCloud();
-  }
-
-  function applyProgressFromStorage() {
-    const saved = localStorage.getItem("ps5_trophy_progress");
-    if (!saved) return;
+  async function saveProgressToSupabase(gameId, trophyId, earned) {
+    if (!state.user) return;
     try {
-      const progress = JSON.parse(saved);
-      state.games.forEach((g) => {
-        if (progress[g.npcommid])
-          g.trophies.forEach((t) => {
-            if (progress[g.npcommid][t.id]) t.earned = true;
-          });
-      });
-    } catch (e) {}
+      const { error } = await supabase
+        .from("trophy_progress")
+        .upsert(
+          {
+            user_id: state.user.id,
+            game_id: gameId,
+            trophy_id: trophyId,
+            earned: earned,
+          },
+          { onConflict: "user_id, game_id, trophy_id" },
+        );
+      if (error) throw error;
+      console.log(`💾 Trophée ${trophyId} sauvegardé sur Supabase.`);
+    } catch (e) {
+      console.error("❌ Erreur sauvegarde Supabase :", e);
+    }
   }
 
+  // --- RENDU ---
   function trophySvg(grade, size = 16) {
     return `<svg class="mini-trophy ${grade}" viewBox="0 0 24 24" width="${size}" height="${size}">
       <path d="M7 3h10v4q0 4-5 4T7 7V3Z" fill="currentColor"/>
@@ -135,18 +118,14 @@
     </svg>`;
   }
 
-  // --- CALCUL ET AFFICHAGE DES STATS GLOBALES ---
   function renderGlobalStats() {
     const container = $("#global-stats");
-    if (!container) return;
-
-    if (state.games.length === 0) {
-      container.innerHTML = "";
+    if (!container || state.games.length === 0) {
+      if (container) container.innerHTML = "";
       return;
     }
-
-    let totalEarned = 0;
-    let totalTrophies = 0;
+    let totalEarned = 0,
+      totalTrophies = 0;
     const globalGrades = {
       platinum: [0, 0],
       gold: [0, 0],
@@ -165,7 +144,6 @@
         }
       });
     });
-
     const globalPct = totalTrophies
       ? Math.round((totalEarned / totalTrophies) * 100)
       : 0;
@@ -175,18 +153,13 @@
         <div class="gs-title">Complétion Globale</div>
         <div class="gs-value">${globalPct}%</div>
         <div class="gs-progress-bar"><i style="width:${globalPct}%"></i></div>
-        <div style="font-size:12px; color:var(--txt-muted); margin-top:8px; font-weight:600;">
-          ${totalEarned} / ${totalTrophies} trophées obtenus
-        </div>
+        <div style="font-size:12px; color:var(--txt-muted); margin-top:8px; font-weight:600;">${totalEarned} / ${totalTrophies} trophées obtenus</div>
       </div>
       ${GRADE_ORDER.map(
         (grade) => `
         <div class="gs-card">
           <div class="gs-title">${GRADE_LABEL[grade]}</div>
-          <div class="gs-icon-row">
-            ${trophySvg(grade, 20)}
-            <div class="gs-value">${globalGrades[grade][0]} <small>/ ${globalGrades[grade][1]}</small></div>
-          </div>
+          <div class="gs-icon-row">${trophySvg(grade, 20)}<div class="gs-value">${globalGrades[grade][0]} <small>/ ${globalGrades[grade][1]}</small></div></div>
         </div>
       `,
       ).join("")}
@@ -199,7 +172,6 @@
     );
     if (existingIndex >= 0) state.games[existingIndex] = game;
     else state.games.push(game);
-    applyProgressFromStorage();
     goDashboard();
   }
 
@@ -235,8 +207,6 @@
       $("#view-" + v).classList.toggle("hidden", v !== name),
     );
     $("#btn-reset").classList.toggle("hidden", name === "drop");
-    const btnCloud = $("#btn-cloud");
-    if (btnCloud) btnCloud.style.display = "inline-block";
   }
 
   function goDashboard() {
@@ -254,7 +224,6 @@
   function renderDashboard() {
     $("#games-count").textContent = `${state.games.length} jeu(x)`;
     renderGlobalStats();
-
     const grid = $("#game-grid");
     if (state.games.length === 0) {
       grid.innerHTML =
@@ -265,18 +234,13 @@
     grid.innerHTML = state.games
       .map((g) => {
         const { stats, pct } = computeStats(g);
-
-        // On utilise l'image du jeu si elle existe, sinon l'étoile
         const gameIcon = g.iconUrl
           ? `<img src="${g.iconUrl}" style="width:100%;height:100%;object-fit:cover;">`
           : `<svg viewBox="0 0 24 24" fill="none" stroke="#0072ce" stroke-width="2"><path d="M12 2L15 9H22L16 14L18 21L12 17L6 21L8 14L2 9H9L12 2Z"/></svg>`;
-
         const trophiesHtml = GRADE_ORDER.map(
-          (grade) => `
-        <div class="gc-trophy">${trophySvg(grade, 16)}<span>${stats[grade][0]}<small>/${stats[grade][1]}</small></span></div>
-      `,
+          (grade) =>
+            `<div class="gc-trophy">${trophySvg(grade, 16)}<span>${stats[grade][0]}<small>/${stats[grade][1]}</small></span></div>`,
         ).join("");
-
         return `
         <div class="game-card" data-id="${esc(g.npcommid)}">
           <div class="gc-top">
@@ -309,16 +273,12 @@
     if (!game) return;
     const { stats, earned, total, pct } = computeStats(game);
     const statsHtml = GRADE_ORDER.map(
-      (g) => `
-      <div class="stat">${trophySvg(g, 22)}<span class="stat-v">${stats[g][0]}<small>/${stats[g][1]}</small></span></div>
-    `,
+      (g) =>
+        `<div class="stat">${trophySvg(g, 22)}<span class="stat-v">${stats[g][0]}<small>/${stats[g][1]}</small></span></div>`,
     ).join("");
-
     const bgStyle = game.backgroundUrl
       ? `background-image: url('${game.backgroundUrl}');`
       : "";
-
-    // On utilise l'image du jeu si elle existe, sinon l'étoile
     const gameIcon = game.iconUrl
       ? `<img src="${game.iconUrl}" style="width:100%;height:100%;object-fit:cover;">`
       : `<svg viewBox="0 0 24 24" fill="none" stroke="#0072ce" stroke-width="2"><path d="M12 2L15 9H22L16 14L18 21L12 17L6 21L8 14L2 9H9L12 2Z"/></svg>`;
@@ -383,7 +343,7 @@
         const trophy = game.trophies.find((t) => t.id === tid);
         if (trophy) {
           trophy.earned = !trophy.earned;
-          saveProgressToStorage();
+          saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned); // SAUVEGARDE SUPABASE
           renderGame();
         }
       });
@@ -399,24 +359,9 @@
     e.target.value = "";
   });
 
-  $("#btn-cloud").addEventListener("click", async () => {
-    if (setupCloud()) {
-      const success = await pullFromCloud();
-      if (success) {
-        applyProgressFromStorage();
-        alert("☁️ Progression synchronisée !");
-        if (state.view === "dashboard") renderDashboard();
-        if (state.view === "game") renderGame();
-      } else {
-        alert("Impossible de récupérer la progression. Vérifie ton Token.");
-      }
-    }
-  });
-
   $("#btn-reset").addEventListener("click", () => {
     if (confirm("Voulez-vous vraiment tout effacer ?")) {
       state.games = [];
-      localStorage.clear();
       showView("drop");
     }
   });
@@ -451,7 +396,7 @@
       const badge = document.createElement("div");
       badge.id = "live-badge";
       badge.style.cssText =
-        "position:fixed; top:20px; right:20px; background:#3ddc84; color:#000; padding:8px 16px; border-radius:20px; font-weight:bold; font-family:sans-serif; font-size:12px; z-index:9999; transition: all 0.3s;";
+        "position:fixed; top:20px; right:20px; background:#3ddc84; color:#000; padding:8px 16px; border-radius:20px; font-weight:bold; font-family:sans-serif; font-size:12px; z-index:9999;";
       badge.textContent = "🟢 PS5 Connectée (Local)";
       document.body.appendChild(badge);
     };
@@ -459,32 +404,18 @@
       const msg = JSON.parse(event.data);
       if (msg.type === "full_game_data") {
         addOrUpdateGame(msg.game);
-        const badge = document.getElementById("live-badge");
-        if (badge) {
-          badge.textContent = `✨ ${msg.game.title} synchronisé !`;
-          badge.style.background = "#0072ce";
-          badge.style.color = "#fff";
-          setTimeout(() => {
-            badge.textContent = "🟢 PS5 Connectée (Local)";
-            badge.style.background = "#3ddc84";
-            badge.style.color = "#000";
-          }, 3000);
-        }
       }
     };
     ws.onclose = () => document.getElementById("live-badge")?.remove();
   }
 
-  // --- CHARGEMENT INITIAL DEPUIS GITHUB ---
-  async function loadFromGitHub() {
+  async function loadGamesFromGitHub() {
     try {
       const res = await fetch("data.json?t=" + Date.now());
       if (res.ok) {
         const games = await res.json();
         if (Array.isArray(games) && games.length > 0) {
           state.games = games;
-          applyProgressFromStorage();
-          goDashboard();
           return true;
         }
       }
@@ -492,12 +423,23 @@
     return false;
   }
 
+  // --- INITIALISATION ---
   async function init() {
     showView("drop");
-    const loaded = await loadFromGitHub();
-    if (!loaded) {
-      if (getCreds().token) await pullFromCloud();
+
+    // 1. Connexion anonyme à Supabase
+    await initSupabase();
+
+    // 2. Charger les jeux depuis GitHub
+    await loadGamesFromGitHub();
+
+    // 3. Charger la progression depuis Supabase et l'appliquer
+    if (state.games.length > 0) {
+      await loadProgressFromSupabase();
+      goDashboard();
     }
+
+    // 4. Connexion locale (si le .bat est lancé)
     connectWebSocket();
   }
 

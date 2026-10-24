@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — Style PS5 (Version Interactive)
+   PS Trophy Viewer — Style PS5 (Version Finale)
    ============================================================ */
 *,
 *::before,
@@ -13,6 +13,7 @@
   --card: #282828;
   --card-h: #303030;
   --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.14);
   --txt: #f2f2f2;
   --txt-muted: #a0a0a0;
   --txt-dim: #6a6a6a;
@@ -24,21 +25,36 @@
   --gold: #f5c14b;
   --silver: #c9d3df;
   --bronze: #c9803f;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   margin: 0;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   background: var(--bg);
   color: var(--txt);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
+
 .hidden {
   display: none !important;
 }
 
-/* HEADER GLOBAL */
+/* HEADER */
 .top-bar {
   position: sticky;
   top: 0;
@@ -57,7 +73,10 @@ body {
   gap: 10px;
   font-weight: 700;
   font-size: 16px;
+  letter-spacing: -0.2px;
 }
+
+/* BOUTONS */
 .btn {
   font: inherit;
   font-size: 13.5px;
@@ -66,12 +85,19 @@ body {
   border-radius: 999px;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.16s;
+  transition:
+    background 0.16s,
+    transform 0.16s,
+    border-color 0.16s,
+    color 0.16s;
   background: transparent;
   color: var(--txt);
 }
 .btn:hover {
   transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(0);
 }
 .btn-primary {
   background: var(--blue);
@@ -83,7 +109,8 @@ body {
 }
 .btn-secondary {
   background: rgba(255, 255, 255, 0.06);
-  border-color: var(--line);
+  border-color: var(--line-2);
+  color: var(--txt);
 }
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -141,16 +168,20 @@ body {
 .drop-card h1 {
   margin: 0 0 12px;
   font-size: 28px;
+  letter-spacing: -0.6px;
 }
 .drop-card p {
   color: var(--txt-muted);
   font-size: 14.5px;
+  line-height: 1.65;
   margin: 0 auto 28px;
+  max-width: 440px;
 }
 .drop-actions {
   display: flex;
   gap: 12px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 .status {
   margin-top: 22px;
@@ -172,6 +203,7 @@ body {
 .dashboard-head h1 {
   margin: 0;
   font-size: 28px;
+  letter-spacing: -0.6px;
 }
 .badge {
   font-size: 12.5px;
@@ -183,6 +215,83 @@ body {
   border: 1px solid rgba(0, 114, 206, 0.35);
 }
 
+/* STATS GLOBALES */
+.global-stats {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.gs-card {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.02)
+  );
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.gs-card.main-stat {
+  background:
+    radial-gradient(
+      300px 100px at 0% 0%,
+      rgba(0, 114, 206, 0.2),
+      transparent 70%
+    ),
+    var(--bg-2);
+  border-color: rgba(0, 114, 206, 0.3);
+}
+.gs-title {
+  font-size: 11.5px;
+  color: var(--txt-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.gs-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--txt);
+  line-height: 1;
+}
+.gs-value small {
+  font-size: 13px;
+  color: var(--txt-muted);
+  font-weight: 600;
+}
+.gs-progress-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+  margin-top: 10px;
+}
+.gs-progress-bar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--green-1), var(--green-2));
+  box-shadow: 0 0 10px rgba(61, 220, 132, 0.35);
+  transition: width 0.8s;
+}
+.gs-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gs-icon-row .mini-trophy {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* GAME GRID */
 .game-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -194,19 +303,22 @@ body {
   flex-direction: column;
   gap: 14px;
   padding: 18px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--card);
   border: 1px solid var(--line);
   cursor: pointer;
+  overflow: hidden;
   transition:
     transform 0.18s,
     background 0.18s,
-    border-color 0.18s;
+    border-color 0.18s,
+    box-shadow 0.18s;
 }
 .game-card:hover {
   transform: translateY(-3px);
   background: var(--card-h);
   border-color: rgba(0, 114, 206, 0.4);
+  box-shadow: 0 12px 40px -20px rgba(0, 114, 206, 0.55);
 }
 .gc-top {
   display: flex;
@@ -216,6 +328,7 @@ body {
 .gc-icon {
   width: 60px;
   height: 60px;
+  flex: none;
   border-radius: 12px;
   background: linear-gradient(145deg, #2f4a6e, #142536);
   border: 1px solid rgba(0, 114, 206, 0.3);
@@ -223,22 +336,39 @@ body {
   place-items: center;
   overflow: hidden;
 }
+.gc-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .gc-icon svg {
   width: 30px;
   height: 30px;
   color: #8ab8e8;
 }
+.gc-info {
+  min-width: 0;
+  flex: 1;
+}
 .gc-title {
   font-size: 15px;
   font-weight: 700;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .gc-platform {
   font-size: 11.5px;
   color: var(--txt-dim);
   text-transform: uppercase;
+  letter-spacing: 0.08em;
   margin-top: 4px;
+  font-weight: 600;
 }
-
 .gc-progress {
   display: flex;
   flex-direction: column;
@@ -247,6 +377,7 @@ body {
 .gc-pct-row {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   font-size: 12.5px;
   color: var(--txt-muted);
 }
@@ -268,7 +399,6 @@ body {
   box-shadow: 0 0 10px rgba(61, 220, 132, 0.35);
   transition: width 0.8s;
 }
-
 .gc-trophies {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -287,42 +417,36 @@ body {
 .gc-trophy .mini-trophy {
   width: 16px;
   height: 16px;
+  flex: none;
+}
+.gc-trophy small {
+  color: var(--txt-dim);
+  font-weight: 500;
 }
 
-/* DÉTAIL JEU (Avec Background) */
+/* DÉTAIL JEU */
 .back-btn {
   margin-bottom: 18px;
 }
 .game-header {
   position: relative;
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 28px;
+  background:
+    radial-gradient(
+      700px 240px at 0% 0%,
+      rgba(0, 114, 206, 0.18),
+      transparent 70%
+    ),
+    var(--bg-2);
   border: 1px solid var(--line);
   overflow: hidden;
   margin-bottom: 22px;
-  background-color: var(--bg-2);
-  background-size: cover;
-  background-position: center;
 }
-/* Le voile sombre par-dessus le fond d'écran pour lire le texte */
 .game-header::before {
   content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to right,
-    rgba(31, 31, 31, 0.95) 0%,
-    rgba(31, 31, 31, 0.7) 100%
-  );
-  z-index: 1;
-}
-/* La ligne bleue en haut */
-.game-header::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0 0 auto 0;
   height: 2px;
   background: linear-gradient(
     90deg,
@@ -331,11 +455,8 @@ body {
     #49e0ff,
     transparent
   );
-  z-index: 2;
 }
 .gh-top {
-  position: relative;
-  z-index: 3;
   display: flex;
   align-items: center;
   gap: 22px;
@@ -344,11 +465,18 @@ body {
 .gh-icon {
   width: 84px;
   height: 84px;
+  flex: none;
   border-radius: 18px;
   background: linear-gradient(145deg, #2f4a6e, #142536);
   border: 1px solid rgba(0, 114, 206, 0.35);
   display: grid;
   place-items: center;
+  overflow: hidden;
+}
+.gh-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .gh-icon svg {
   width: 40px;
@@ -357,17 +485,19 @@ body {
 }
 .gh-info {
   flex: 1;
+  min-width: 200px;
 }
 .gh-title {
   font-size: 26px;
   font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1.15;
   margin: 0 0 6px;
 }
 .gh-meta {
   font-size: 13px;
   color: var(--txt-muted);
 }
-
 .gh-progress {
   min-width: 220px;
   text-align: right;
@@ -375,11 +505,13 @@ body {
 .gh-pct {
   font-size: 34px;
   font-weight: 800;
+  letter-spacing: -1px;
   line-height: 1;
 }
 .gh-pct small {
   font-size: 16px;
   color: var(--txt-muted);
+  margin-left: 2px;
 }
 .gh-bar {
   height: 9px;
@@ -392,18 +524,17 @@ body {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--green-1), var(--green-2));
+  box-shadow: 0 0 14px rgba(61, 220, 132, 0.45);
   transition: width 0.9s;
 }
 .gh-label {
   font-size: 11px;
   color: var(--txt-muted);
   text-transform: uppercase;
+  letter-spacing: 0.1em;
   font-weight: 700;
 }
-
 .gh-stats {
-  position: relative;
-  z-index: 3;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
@@ -415,23 +546,30 @@ body {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
 }
 .stat .mini-trophy {
   width: 22px;
   height: 22px;
+  flex: none;
 }
 .stat .stat-v {
   font-size: 15px;
   font-weight: 700;
+}
+.stat .stat-v small {
+  font-size: 11.5px;
+  color: var(--txt-muted);
+  font-weight: 500;
 }
 
 /* LISTE TROPHÉES */
 .toolbar {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 16px;
 }
 .search {
@@ -446,7 +584,10 @@ body {
   color: var(--txt);
   outline: none;
 }
-
+.search:focus {
+  border-color: rgba(0, 114, 206, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+}
 .trophy-list {
   list-style: none;
   margin: 0;
@@ -461,24 +602,26 @@ body {
   gap: 16px;
   align-items: center;
   padding: 14px 18px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--card);
   border: 1px solid var(--line);
-  transition: all 0.2s;
-  cursor: pointer; /* Curseur cliquable */
+  transition:
+    background 0.16s,
+    border-color 0.16s,
+    transform 0.16s;
+  cursor: pointer;
 }
 .trophy-row:hover {
   background: var(--card-h);
-  border-color: rgba(0, 114, 206, 0.4);
-  transform: translateX(4px);
+  border-color: var(--line-2);
+  transform: translateX(3px);
 }
 .trophy-row.locked {
-  opacity: 0.6;
+  opacity: 0.5;
 }
 .trophy-row.locked:hover {
-  opacity: 0.9;
+  opacity: 0.8;
 }
-
 .medal {
   width: 52px;
   height: 52px;
@@ -495,9 +638,8 @@ body {
   object-fit: cover;
 }
 .trophy-row.locked .medal {
-  filter: grayscale(1) brightness(0.6);
+  filter: grayscale(0.9) brightness(0.75);
 }
-
 .mini-trophy {
   display: block;
 }
@@ -517,23 +659,28 @@ body {
   color: var(--bronze);
   filter: drop-shadow(0 0 6px rgba(201, 128, 63, 0.5));
 }
-
 .tinfo {
   min-width: 0;
 }
 .tname {
   font-size: 14.5px;
   font-weight: 700;
+  letter-spacing: -0.1px;
+  line-height: 1.35;
   margin-bottom: 3px;
 }
 .tdesc {
   font-size: 12.8px;
   color: var(--txt-muted);
+  line-height: 1.45;
 }
 .tmeta {
+  text-align: right;
   display: flex;
   flex-direction: column;
+  gap: 6px;
   align-items: flex-end;
+  flex: none;
 }
 .rarity {
   font-size: 11.5px;
@@ -543,9 +690,19 @@ body {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--line);
   color: var(--txt-muted);
+  white-space: nowrap;
+}
+.empty-msg {
+  padding: 40px;
+  text-align: center;
+  color: var(--txt-muted);
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-sm);
 }
 
-/* Drag Overlay */
+/* DRAG OVERLAY */
 .drop-overlay {
   position: fixed;
   inset: 0;
@@ -569,113 +726,48 @@ body {
   background: rgba(0, 114, 206, 0.1);
   font-size: 20px;
   font-weight: 700;
+  color: #cfe4ff;
 }
 
-@media (max-width: 720px) {
-  .gh-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .trophy-row {
-    grid-template-columns: 48px 1fr;
-  }
-  .tmeta {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    margin-top: 2px;
-  }
-}
-/* ============================================================
-   STATISTIQUES GLOBALES
-   ============================================================ */
-.global-stats {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.gs-card {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.06),
-    rgba(255, 255, 255, 0.02)
-  );
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.gs-card.main-stat {
-  background:
-    radial-gradient(
-      300px 100px at 0% 0%,
-      rgba(0, 114, 206, 0.2),
-      transparent 70%
-    ),
-    var(--bg-2);
-  border-color: rgba(0, 114, 206, 0.3);
-}
-
-.gs-title {
-  font-size: 11.5px;
-  color: var(--txt-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.gs-value {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--txt);
-  line-height: 1;
-}
-
-.gs-value small {
-  font-size: 13px;
-  color: var(--txt-muted);
-  font-weight: 600;
-}
-
-.gs-progress-bar {
-  height: 6px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.09);
-  overflow: hidden;
-  margin-top: 10px;
-}
-
-.gs-progress-bar > i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, var(--green-1), var(--green-2));
-  box-shadow: 0 0 10px rgba(61, 220, 132, 0.35);
-  transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.gs-icon-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.gs-icon-row .mini-trophy {
-  width: 20px;
-  height: 20px;
-  flex: none;
-}
-
-/* Responsive pour les stats */
+/* RESPONSIVE */
 @media (max-width: 900px) {
   .global-stats {
     grid-template-columns: 1fr 1fr;
   }
   .gs-card.main-stat {
     grid-column: 1 / -1;
+  }
+}
+@media (max-width: 720px) {
+  .view {
+    padding: 18px 14px 60px;
+  }
+  .game-header {
+    padding: 20px;
+  }
+  .gh-title {
+    font-size: 21px;
+  }
+  .gh-progress {
+    min-width: 100%;
+    text-align: left;
+  }
+  .gh-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .trophy-row {
+    grid-template-columns: 48px 1fr;
+    gap: 12px;
+  }
+  .tmeta {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 2px;
+  }
+  .search {
+    margin-left: 0;
+    width: 100%;
   }
 }

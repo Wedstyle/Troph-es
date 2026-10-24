@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PS Trophy Viewer</title>
     <link rel="stylesheet" href="style.css" />
+    <!-- SDK Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
     <!-- ===================== HEADER ===================== -->
@@ -24,9 +26,6 @@
         <span>PS Trophy Viewer</span>
       </div>
       <div class="actions">
-        <button id="btn-cloud" class="btn btn-secondary" style="display: none">
-          ☁️ Sync Cloud
-        </button>
         <button id="btn-reset" class="btn btn-ghost hidden">
           ↺ Nouveau fichier
         </button>
@@ -72,16 +71,15 @@
         </div>
       </section>
 
-      <!-- VUE 2 : DASHBOARD (Liste des jeux) -->
+      <!-- VUE 2 : DASHBOARD (Liste des jeux + Stats) -->
       <section id="view-dashboard" class="view hidden">
         <div class="dashboard-head">
           <h1>Mes jeux</h1>
           <span class="badge" id="games-count">0 jeu</span>
         </div>
 
-        <!-- 👇 NOUVELLE SECTION STATS GLOBALES 👇 -->
+        <!-- Statistiques Globales -->
         <div id="global-stats" class="global-stats"></div>
-        <!-- 👆 FIN DE LA SECTION 👆 -->
 
         <div class="game-grid" id="game-grid"></div>
       </section>
