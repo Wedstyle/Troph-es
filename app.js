@@ -48,10 +48,23 @@
   // --- GESTION SUPABASE ---
   async function initSupabase() {
     try {
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) throw error;
-      state.user = data.user;
-      console.log("✅ Session anonyme Supabase créée :", state.user.id);
+      // 1. On vérifie si une session existe déjà dans le navigateur
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (session && session.user) {
+        // Si oui, on récupère l'utilisateur existant
+        state.user = session.user;
+        console.log("✅ Session existante récupérée :", state.user.id);
+      } else {
+        // 2. Si non, on crée une nouvelle session anonyme
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
+        state.user = data.user;
+        console.log("✅ Nouvelle session anonyme créée :", state.user.id);
+      }
     } catch (e) {
       console.error("❌ Erreur Supabase Auth :", e);
     }
