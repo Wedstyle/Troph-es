@@ -1,15 +1,12 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Dashboard Direct Corrigée)
+   PS Trophy Viewer — app.js (Version PS5 Feel + Filtres)
    ============================================================ */
 
 (() => {
   "use strict";
 
-  // ⚠️ CONFIGURATION SUPABASE
-  const SUPABASE_URL = "https://ahacsjnxwswymhmqmizd.supabase.co";
-  const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoYWNzam54d3N3eW1obXFtaXpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzE5NjMsImV4cCI6MjEwODQ0Nzk2M30.clKOjewbJN1NnkxokpElE0KwueoX0-R_1tNPU9OMf_I";
-
+  const SUPABASE_URL = "https://ahacsjnxswymhmqmizd.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_5_mW0UxmK0PyVnr3nzfZgw_r-0rsMqH";
   const supabase = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -21,7 +18,10 @@
     currentId: null,
     search: "",
     user: null,
+    filter: "all",
+    sort: "default",
   };
+
   const GRADE_ORDER = ["platinum", "gold", "silver", "bronze"];
   const GRADE_LABEL = {
     platinum: "Platine",
@@ -51,7 +51,6 @@
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
       if (session && session.user) {
         state.user = session.user;
         console.log("✅ Session existante récupérée :", state.user.id);
@@ -75,19 +74,16 @@
         .eq("user_id", state.user.id);
 
       if (error) throw error;
-
       if (data) {
         const progressMap = {};
         data.forEach((p) => {
           if (!progressMap[p.game_id]) progressMap[p.game_id] = {};
-          if (p.earned) {
+          if (p.earned)
             progressMap[p.game_id][p.trophy_id] = {
               earned: p.earned,
               earned_at: p.earned_at,
             };
-          }
         });
-
         state.games.forEach((g) => {
           if (progressMap[g.npcommid]) {
             g.trophies.forEach((t) => {
@@ -98,10 +94,10 @@
             });
           }
         });
-        console.log("🔄 Progression chargée depuis Supabase.");
+        console.log("🔄 Progression chargée.");
       }
     } catch (e) {
-      console.error("❌ Erreur chargement Supabase :", e);
+      console.error("❌ Erreur chargement :", e);
     }
   }
 
@@ -109,22 +105,22 @@
     if (!state.user) return;
     try {
       const earnedAt = earned ? new Date().toISOString() : null;
-
-      const { error } = await supabase.from("trophy_progress").upsert(
-        {
-          user_id: state.user.id,
-          game_id: gameId,
-          trophy_id: trophyId,
-          earned: earned,
-          earned_at: earnedAt,
-        },
-        { onConflict: "user_id, game_id, trophy_id" },
-      );
-
+      const { error } = await supabase
+        .from("trophy_progress")
+        .upsert(
+          {
+            user_id: state.user.id,
+            game_id: gameId,
+            trophy_id: trophyId,
+            earned: earned,
+            earned_at: earnedAt,
+          },
+          { onConflict: "user_id, game_id, trophy_id" },
+        );
       if (error) throw error;
-      console.log(`💾 Trophée ${trophyId} sauvegardé sur Supabase.`);
+      console.log(`💾 Trophée ${trophyId} sauvegardé.`);
     } catch (e) {
-      console.error("❌ Erreur sauvegarde Supabase :", e);
+      console.error("❌ Erreur sauvegarde :", e);
     }
   }
 
@@ -222,7 +218,6 @@
 
   function showView(name) {
     state.view = name;
-    // On ne gère plus que 'dashboard' et 'game'
     ["dashboard", "game"].forEach((v) => {
       const el = $("#view-" + v);
       if (el) el.classList.toggle("hidden", v !== name);
@@ -231,12 +226,17 @@
 
   function goDashboard() {
     state.currentId = null;
+    // 👈 On remet le fond par défaut
+    document.body.style.background = "var(--bg)";
     renderDashboard();
     showView("dashboard");
   }
+
   function goGame(npcommid) {
     state.currentId = npcommid;
     state.search = "";
+    state.filter = "all";
+    state.sort = "default";
     renderGame();
     showView("game");
   }
@@ -247,7 +247,7 @@
     const grid = $("#game-grid");
     if (state.games.length === 0) {
       grid.innerHTML =
-        '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1; padding: 40px;">Aucun jeu trouvé. Lancez <code>Lancer_Pont.bat</code> sur votre PC pour synchroniser.</p>';
+        '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1; padding: 40px;">Aucun jeu trouvé.</p>';
       return;
     }
 
@@ -288,9 +288,46 @@
       );
   }
 
+  function renderToolbar() {
+    return `
+      <div class="toolbar">
+        <div class="filters">
+          <button class="filter-btn ${state.filter === "all" ? "active" : ""}" data-filter="all">Tous</button>
+          <button class="filter-btn ${state.filter === "earned" ? "active" : ""}" data-filter="earned">Obtenus</button>
+          <button class="filter-btn ${state.filter === "unearned" ? "active" : ""}" data-filter="unearned">Non obtenus</button>
+        </div>
+        <input class="search" type="search" placeholder="Rechercher un trophée..." value="${esc(state.search)}">
+        <select class="sort-select">
+          <option value="default" ${state.sort === "default" ? "selected" : ""}>Tri par défaut</option>
+          <option value="date" ${state.sort === "date" ? "selected" : ""}>Plus récents</option>
+          <option value="alpha" ${state.sort === "alpha" ? "selected" : ""}>A → Z</option>
+        </select>
+      </div>
+    `;
+  }
+
   function renderGame() {
     const game = state.games.find((g) => g.npcommid === state.currentId);
     if (!game) return;
+
+    // 👇 EFFET PS5 : Le fond prend la couleur de l'icône
+    if (game.iconUrl) {
+      const img = new Image();
+      img.src = game.iconUrl;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        document.body.style.background = `radial-gradient(circle at top, rgba(${r},${g},${b},0.15) 0%, var(--bg) 60%)`;
+      };
+    } else {
+      document.body.style.background = "var(--bg)";
+    }
+    // 👆 FIN EFFET PS5
+
     const { stats, earned, total, pct } = computeStats(game);
     const statsHtml = GRADE_ORDER.map(
       (g) =>
@@ -316,29 +353,59 @@
         </div>
         <div class="gh-stats">${statsHtml}</div>
       </div>
-      <div class="toolbar"><input class="search" type="search" placeholder="Rechercher un trophée..."></div>
+      ${renderToolbar()}
       <div id="trophy-list-container"></div>
     `;
+
+    $("#game-detail")
+      .querySelectorAll(".filter-btn")
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.filter = btn.dataset.filter;
+          renderGame();
+        });
+      });
+    $("#game-detail .search").addEventListener("input", (e) => {
+      state.search = e.target.value;
+      renderTrophyList(game);
+    });
+    $("#game-detail .sort-select").addEventListener("change", (e) => {
+      state.sort = e.target.value;
+      renderTrophyList(game);
+    });
+
     renderTrophyList(game);
     requestAnimationFrame(() =>
       $$("#game-detail .gh-bar > i").forEach(
         (bar) => (bar.style.width = bar.dataset.pct + "%"),
       ),
     );
-    $("#game-detail .search").addEventListener("input", (e) => {
-      state.search = e.target.value;
-      renderTrophyList(game);
-    });
   }
 
   function renderTrophyList(game) {
     const q = state.search.trim().toLowerCase();
-    const list = game.trophies.filter(
-      (t) => !q || (t.name + " " + t.description).toLowerCase().includes(q),
-    );
+
+    let list = game.trophies.filter((t) => {
+      if (state.filter === "earned" && !t.earned) return false;
+      if (state.filter === "unearned" && t.earned) return false;
+      if (q && !(t.name + " " + t.description).toLowerCase().includes(q))
+        return false;
+      return true;
+    });
+
+    if (state.sort === "date") {
+      list.sort((a, b) => {
+        const dateA = a.earnedTime ? new Date(a.earnedTime).getTime() : 0;
+        const dateB = b.earnedTime ? new Date(b.earnedTime).getTime() : 0;
+        return dateB - dateA;
+      });
+    } else if (state.sort === "alpha") {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
     const container = $("#trophy-list-container");
     if (!list.length) {
-      container.innerHTML = `<div class="empty-msg">Aucun trophée.</div>`;
+      container.innerHTML = `<div class="empty-msg">Aucun trophée ne correspond à ces filtres.</div>`;
       return;
     }
 
@@ -369,17 +436,21 @@
         const tid = parseInt(row.dataset.tid, 10);
         const trophy = game.trophies.find((t) => t.id === tid);
         if (trophy) {
+          row.classList.add("animate-pop");
+          setTimeout(() => row.classList.remove("animate-pop"), 300);
+
           trophy.earned = !trophy.earned;
           trophy.earnedTime = trophy.earned ? new Date().toISOString() : null;
 
           saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
-          renderGame();
+
+          setTimeout(() => renderGame(), 150);
         }
       });
     });
   }
 
-  // --- ÉVÉNEMENTS ---
+  // --- INITIALISATION ---
   const btnBack = $("#btn-back");
   if (btnBack) btnBack.addEventListener("click", goDashboard);
 
@@ -416,23 +487,11 @@
     return false;
   }
 
-  // --- INITIALISATION ---
   async function init() {
-    // 1. Connexion anonyme à Supabase
     await initSupabase();
-
-    // 2. Charger les jeux depuis GitHub ou local
     await loadGamesFromGitHub();
-
-    // 3. Charger la progression depuis Supabase et l'appliquer
-    if (state.games.length > 0) {
-      await loadProgressFromSupabase();
-    }
-
-    // 4. Afficher le dashboard direct
+    if (state.games.length > 0) await loadProgressFromSupabase();
     goDashboard();
-
-    // 5. Connexion locale (si le .bat est lancé)
     connectWebSocket();
   }
 

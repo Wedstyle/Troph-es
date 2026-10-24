@@ -777,3 +777,75 @@ body {
   font-weight: 600;
   margin-top: 4px;
 }
+/* ============================================================
+   EFFETS PS5 FEEL
+   ============================================================ */
+
+/* 1. Fond dynamique (transition douce) */
+body {
+  transition: background 1s ease-in-out;
+  background-color: var(--bg); /* Couleur par défaut */
+}
+
+/* 2. Effet de verre (Reflet) sur les cartes de jeux */
+.game-card {
+  position: relative;
+  overflow: hidden;
+}
+.game-card::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(45deg);
+  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.game-card:hover::after {
+  transform: rotate(45deg) translate(50%, 50%);
+}
+
+/* 3. Shimmer sur les barres de progression */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.gc-bar > i,
+.gh-bar > i,
+.gs-progress-bar > i {
+  background: linear-gradient(
+    90deg,
+    var(--green-1) 0%,
+    #a8f0c6 50%,
+    var(--green-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite linear;
+}
+
+/* 4. Transitions entre les vues (Fondu) */
+.view {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
