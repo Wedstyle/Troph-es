@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Cloud GitHub)
+   PS Trophy Viewer — app.js (Version Cloud GitHub Finale)
    ============================================================ */
 
 (() => {
@@ -72,7 +72,7 @@
 
   async function pullFromCloud() {
     const { token, gistId } = getCreds();
-    if (!token || !gistId) return;
+    if (!token || !gistId) return false;
 
     try {
       const res = await fetch(`https://api.github.com/gists/${gistId}`, {
@@ -90,7 +90,7 @@
             localStorage.getItem("ps5_trophy_progress") || "{}",
           );
 
-          // Fusion : on garde ce qui est coché localement ET sur le cloud
+          // Fusion intelligente : on garde ce qui est coché localement ET sur le cloud
           const merged = { ...cloudProgress };
           for (const gameId in localProgress) {
             if (!merged[gameId]) merged[gameId] = {};
@@ -109,7 +109,7 @@
     return false;
   }
 
-  // --- SAUVEGARDE ---
+  // --- SAUVEGARDE LOCALE ---
   function saveProgressToStorage() {
     const progress = {};
     state.games.forEach((g) => {
@@ -187,7 +187,10 @@
       $("#view-" + v).classList.toggle("hidden", v !== name),
     );
     $("#btn-reset").classList.toggle("hidden", name === "drop");
-    if (state.games.length > 0) $("#btn-cloud").style.display = "inline-block";
+
+    // 👇 LE BOUTON CLOUD EST MAINTENANT TOUJOURS VISIBLE 👇
+    const btnCloud = $("#btn-cloud");
+    if (btnCloud) btnCloud.style.display = "inline-block";
   }
 
   function goDashboard() {
@@ -207,7 +210,7 @@
     const grid = $("#game-grid");
     if (state.games.length === 0) {
       grid.innerHTML =
-        '<p style="color:#888; text-align:center; width:100%;">Aucun jeu chargé.</p>';
+        '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1;">Aucun jeu chargé. Clique sur "Sync Cloud" ou ajoute un dossier via le pont Python.</p>';
       return;
     }
     grid.innerHTML = state.games
@@ -336,10 +339,19 @@
 
   $("#btn-cloud").addEventListener("click", async () => {
     if (setupCloud()) {
-      await pullFromCloud();
+      const success = await pullFromCloud();
       applyProgressFromStorage();
-      renderDashboard();
-      alert("☁️ Synchronisation avec le Cloud réussie !");
+      if (state.view === "dashboard") renderDashboard();
+      if (state.view === "game") renderGame();
+
+      if (success)
+        alert(
+          "☁️ Synchronisation avec le Cloud réussie ! Ta progression a été mise à jour.",
+        );
+      else
+        alert(
+          "Impossible de récupérer les données. Vérifie ton Token et l'ID du Gist.",
+        );
     }
   });
 
@@ -355,7 +367,6 @@
   $("#btn-back").addEventListener("click", goDashboard);
 
   function processFolder(files) {
-    // Fonction de secours (glisser-déposer manuel) conservée
     let jsonFile = files.find((f) => f.name.includes("tropmeta"));
     if (!jsonFile) return;
     const reader = new FileReader();
@@ -413,7 +424,8 @@
     showView("drop");
     // Si on a déjà les clés, on récupère la sauvegarde du cloud en silence
     if (getCreds().token) {
-      await pullFromCloud();
+      const success = await pullFromCloud();
+      if (success) applyProgressFromStorage();
     }
     connectWebSocket();
   }
