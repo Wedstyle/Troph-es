@@ -1,11 +1,11 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Supabase Connectée)
+   PS Trophy Viewer — app.js (Version Supabase 100% Propre)
    ============================================================ */
 
 (() => {
   "use strict";
 
-  // ⚠️ CONFIGURATION SUPABASE (Tes clés sont déjà intégrées)
+  // ⚠️ CONFIGURATION SUPABASE
   const SUPABASE_URL = "https://ahacsjnxswymhmqmizd.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_5_mW0UxmK0PyVnr3nzfZgw_r-0rsMqH";
 
@@ -47,7 +47,6 @@
   // --- GESTION SUPABASE ---
   async function initSupabase() {
     try {
-      // Connexion anonyme (crée un utilisateur unique dans la base)
       const { data, error } = await supabase.auth.signInAnonymously();
       if (error) throw error;
       state.user = data.user;
@@ -206,7 +205,8 @@
     ["drop", "dashboard", "game"].forEach((v) =>
       $("#view-" + v).classList.toggle("hidden", v !== name),
     );
-    $("#btn-reset").classList.toggle("hidden", name === "drop");
+    const btnReset = $("#btn-reset");
+    if (btnReset) btnReset.classList.toggle("hidden", name === "drop");
   }
 
   function goDashboard() {
@@ -343,29 +343,40 @@
         const trophy = game.trophies.find((t) => t.id === tid);
         if (trophy) {
           trophy.earned = !trophy.earned;
-          saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned); // SAUVEGARDE SUPABASE
+          saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
           renderGame();
         }
       });
     });
   }
 
-  // --- ÉVÉNEMENTS ---
-  $("#btn-pick").addEventListener("click", () => $("#file-input").click());
-  $("#file-input").setAttribute("webkitdirectory", "");
-  $("#file-input").addEventListener("change", (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length) processFolder(files);
-    e.target.value = "";
-  });
+  // --- ÉVÉNEMENTS (Sécurisés) ---
+  const btnPick = $("#btn-pick");
+  if (btnPick)
+    btnPick.addEventListener("click", () => $("#file-input").click());
 
-  $("#btn-reset").addEventListener("click", () => {
-    if (confirm("Voulez-vous vraiment tout effacer ?")) {
-      state.games = [];
-      showView("drop");
-    }
-  });
-  $("#btn-back").addEventListener("click", goDashboard);
+  const fileInput = $("#file-input");
+  if (fileInput) {
+    fileInput.setAttribute("webkitdirectory", "");
+    fileInput.addEventListener("change", (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length) processFolder(files);
+      e.target.value = "";
+    });
+  }
+
+  const btnReset = $("#btn-reset");
+  if (btnReset) {
+    btnReset.addEventListener("click", () => {
+      if (confirm("Voulez-vous vraiment tout effacer ?")) {
+        state.games = [];
+        showView("drop");
+      }
+    });
+  }
+
+  const btnBack = $("#btn-back");
+  if (btnBack) btnBack.addEventListener("click", goDashboard);
 
   function processFolder(files) {
     let jsonFile = files.find((f) => f.name.includes("tropmeta"));
