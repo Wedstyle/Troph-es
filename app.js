@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Supabase 100% Propre)
+   PS Trophy Viewer — app.js (Version Dashboard Direct)
    ============================================================ */
 
 (() => {
@@ -16,7 +16,7 @@
 
   const state = {
     games: [],
-    view: "drop",
+    view: "dashboard",
     currentId: null,
     search: "",
     user: null,
@@ -202,11 +202,9 @@
 
   function showView(name) {
     state.view = name;
-    ["drop", "dashboard", "game"].forEach((v) =>
+    ["dashboard", "game"].forEach((v) =>
       $("#view-" + v).classList.toggle("hidden", v !== name),
     );
-    const btnReset = $("#btn-reset");
-    if (btnReset) btnReset.classList.toggle("hidden", name === "drop");
   }
 
   function goDashboard() {
@@ -227,7 +225,7 @@
     const grid = $("#game-grid");
     if (state.games.length === 0) {
       grid.innerHTML =
-        '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1;">Aucun jeu chargé.</p>';
+        '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1; padding: 40px;">Aucun jeu trouvé. Lancez <code>Lancer_Pont.bat</code> sur votre PC pour synchroniser.</p>';
       return;
     }
 
@@ -350,56 +348,9 @@
     });
   }
 
-  // --- ÉVÉNEMENTS (Sécurisés) ---
-  const btnPick = $("#btn-pick");
-  if (btnPick)
-    btnPick.addEventListener("click", () => $("#file-input").click());
-
-  const fileInput = $("#file-input");
-  if (fileInput) {
-    fileInput.setAttribute("webkitdirectory", "");
-    fileInput.addEventListener("change", (e) => {
-      const files = Array.from(e.target.files);
-      if (files.length) processFolder(files);
-      e.target.value = "";
-    });
-  }
-
-  const btnReset = $("#btn-reset");
-  if (btnReset) {
-    btnReset.addEventListener("click", () => {
-      if (confirm("Voulez-vous vraiment tout effacer ?")) {
-        state.games = [];
-        showView("drop");
-      }
-    });
-  }
-
+  // --- ÉVÉNEMENTS ---
   const btnBack = $("#btn-back");
   if (btnBack) btnBack.addEventListener("click", goDashboard);
-
-  function processFolder(files) {
-    let jsonFile = files.find((f) => f.name.includes("tropmeta"));
-    if (!jsonFile) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = JSON.parse(e.target.result);
-      const trophees = data.metadata.trophyMetadata.map((t, i) => ({
-        id: i,
-        name: t.name,
-        description: t.detail,
-        grade: t.id === "0000" ? "platinum" : "bronze",
-        earned: false,
-      }));
-      addOrUpdateGame({
-        npcommid: "MANUEL_" + Date.now(),
-        title: data.metadata.titleMetadata.name,
-        platform: "PS5",
-        trophies: trophees,
-      });
-    };
-    reader.readAsText(jsonFile);
-  }
 
   function connectWebSocket() {
     const ws = new WebSocket("ws://localhost:8765");
@@ -436,21 +387,21 @@
 
   // --- INITIALISATION ---
   async function init() {
-    showView("drop");
-
     // 1. Connexion anonyme à Supabase
     await initSupabase();
 
     // 2. Charger les jeux depuis GitHub
     await loadGamesFromGitHub();
 
-    // 3. Charger la progression depuis Supabase et l'appliquer
+    // 3. Charger la progression et afficher le dashboard
     if (state.games.length > 0) {
       await loadProgressFromSupabase();
       goDashboard();
+    } else {
+      goDashboard(); // Affiche "Aucun jeu trouvé" proprement
     }
 
-    // 4. Connexion locale (si le .bat est lancé)
+    // 4. Connexion locale
     connectWebSocket();
   }
 

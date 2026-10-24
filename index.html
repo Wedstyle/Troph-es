@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PS Trophy Viewer</title>
     <link rel="stylesheet" href="style.css" />
-    <!-- SDK Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
@@ -25,66 +24,22 @@
         </svg>
         <span>PS Trophy Viewer</span>
       </div>
-      <div class="actions">
-        <button id="btn-reset" class="btn btn-ghost hidden">
-          ↺ Nouveau fichier
-        </button>
-      </div>
     </header>
 
     <!-- ===================== VIEWS ===================== -->
     <main id="app">
-      <!-- VUE 1 : DROP (Glisser-déposer) -->
-      <section id="view-drop" class="view">
-        <div class="drop-card">
-          <div class="drop-icon">
-            <svg
-              width="56"
-              height="56"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#0072ce"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M12 3v12M12 3l-4 4M12 3l4 4" />
-              <path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3" />
-            </svg>
-          </div>
-          <h1>Déposez votre ZIP</h1>
-          <p>
-            Glissez-déposez <strong>PS Games.zip</strong> ou un dossier extrait
-            ici.<br />
-            L'analyse est 100 % locale — aucune donnée n'est envoyée.
-          </p>
-          <div class="drop-actions">
-            <button id="btn-pick" class="btn btn-primary">
-              Choisir un fichier
-            </button>
-            <button id="btn-demo" class="btn btn-secondary">
-              Voir la démo
-            </button>
-          </div>
-          <input type="file" id="file-input" hidden />
-          <div class="status" id="status"></div>
-        </div>
-      </section>
-
-      <!-- VUE 2 : DASHBOARD (Liste des jeux + Stats) -->
+      <!-- VUE 1 : DASHBOARD (Liste des jeux + Stats) -->
       <section id="view-dashboard" class="view hidden">
         <div class="dashboard-head">
           <h1>Mes jeux</h1>
           <span class="badge" id="games-count">0 jeu</span>
         </div>
 
-        <!-- Statistiques Globales -->
         <div id="global-stats" class="global-stats"></div>
-
         <div class="game-grid" id="game-grid"></div>
       </section>
 
-      <!-- VUE 3 : DÉTAIL JEU (Liste des trophées) -->
+      <!-- VUE 2 : DÉTAIL JEU (Liste des trophées) -->
       <section id="view-game" class="view hidden">
         <button class="btn btn-ghost back-btn" id="btn-back">
           ← Retour aux jeux
@@ -92,11 +47,6 @@
         <div id="game-detail"></div>
       </section>
     </main>
-
-    <!-- ===================== OVERLAY DRAG & DROP ===================== -->
-    <div class="drop-overlay" id="drop-overlay">
-      <div>Déposez le fichier ou le dossier</div>
-    </div>
 
     <script src="app.js"></script>
   </body>
