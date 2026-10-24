@@ -6,7 +6,8 @@
   "use strict";
 
   const SUPABASE_URL = "https://ahacsjnxswymhmqmizd.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_5_mW0UxmK0PyVnr3nzfZgw_r-0rsMqH";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoYWNzam54d3N3eW1obXFtaXpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzE5NjMsImV4cCI6MjEwODQ0Nzk2M30.clKOjewbJN1NnkxokpElE0KwueoX0-R_1tNPU9OMf_I";
   const supabase = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -105,18 +106,16 @@
     if (!state.user) return;
     try {
       const earnedAt = earned ? new Date().toISOString() : null;
-      const { error } = await supabase
-        .from("trophy_progress")
-        .upsert(
-          {
-            user_id: state.user.id,
-            game_id: gameId,
-            trophy_id: trophyId,
-            earned: earned,
-            earned_at: earnedAt,
-          },
-          { onConflict: "user_id, game_id, trophy_id" },
-        );
+      const { error } = await supabase.from("trophy_progress").upsert(
+        {
+          user_id: state.user.id,
+          game_id: gameId,
+          trophy_id: trophyId,
+          earned: earned,
+          earned_at: earnedAt,
+        },
+        { onConflict: "user_id, game_id, trophy_id" },
+      );
       if (error) throw error;
       console.log(`💾 Trophée ${trophyId} sauvegardé.`);
     } catch (e) {
@@ -316,12 +315,44 @@
       img.src = game.iconUrl;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        canvas.width = 1;
-        canvas.height = 1;
+        // On réduit l'image à 10x10 pour un calcul rapide
+        canvas.width = 10;
+        canvas.height = 10;
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        document.body.style.background = `radial-gradient(circle at top, rgba(${r},${g},${b},0.15) 0%, var(--bg) 60%)`;
+        ctx.drawImage(img, 0, 0, 10, 10);
+
+        const imageData = ctx.getImageData(0, 0, 10, 10).data;
+        let rTotal = 0,
+          gTotal = 0,
+          bTotal = 0,
+          count = 0;
+
+        // On parcourt les pixels pour trouver la vraie couleur (on ignore le blanc et le noir pur)
+        for (let i = 0; i < imageData.length; i += 4) {
+          const r = imageData[i];
+          const g = imageData[i + 1];
+          const b = imageData[i + 2];
+
+          // Si le pixel n'est ni trop clair (blanc) ni trop sombre (noir)
+          if (r + g + b > 100 && r + g + b < 600) {
+            rTotal += r;
+            gTotal += g;
+            bTotal += b;
+            count++;
+          }
+        }
+
+        if (count > 0) {
+          const avgR = Math.floor(rTotal / count);
+          const avgG = Math.floor(gTotal / count);
+          const avgB = Math.floor(bTotal / count);
+
+          // On applique la couleur avec une opacité très faible (0.12) pour garder le côté sombre
+          document.body.style.background = `radial-gradient(circle at 50% 0%, rgba(${avgR}, ${avgG}, ${avgB}, 0.12) 0%, var(--bg) 60%)`;
+        } else {
+          // Si l'image est monochrome (tout blanc ou tout noir), on garde le fond par défaut
+          document.body.style.background = "var(--bg)";
+        }
       };
     } else {
       document.body.style.background = "var(--bg)";

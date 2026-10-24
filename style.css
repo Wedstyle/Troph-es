@@ -783,7 +783,7 @@ body {
 
 /* 1. Fond dynamique (transition douce) */
 body {
-  transition: background 1s ease-in-out;
+  transition: background 0.3s ease-in-out;
   background-color: var(--bg); /* Couleur par défaut */
 }
 
