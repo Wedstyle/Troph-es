@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Finale avec Dates)
+   PS Trophy Viewer — app.js (Version Dashboard Direct Corrigée)
    ============================================================ */
 
 (() => {
@@ -47,18 +47,14 @@
   // --- GESTION SUPABASE ---
   async function initSupabase() {
     try {
-      // 1. On vérifie si une session existe déjà dans le navigateur
       const {
         data: { session },
-        error: sessionError,
       } = await supabase.auth.getSession();
 
       if (session && session.user) {
-        // Si oui, on récupère l'utilisateur existant
         state.user = session.user;
         console.log("✅ Session existante récupérée :", state.user.id);
       } else {
-        // 2. Si non, on crée une nouvelle session anonyme
         const { data, error } = await supabase.auth.signInAnonymously();
         if (error) throw error;
         state.user = data.user;
@@ -96,7 +92,7 @@
             g.trophies.forEach((t) => {
               if (progressMap[g.npcommid][t.id]) {
                 t.earned = progressMap[g.npcommid][t.id].earned;
-                t.earnedTime = progressMap[g.npcommid][t.id].earned_at; // 👈 Assignation de la date
+                t.earnedTime = progressMap[g.npcommid][t.id].earned_at;
               }
             });
           }
@@ -111,7 +107,6 @@
   async function saveProgressToSupabase(gameId, trophyId, earned) {
     if (!state.user) return;
     try {
-      // 👈 On génère la date du jour si on coche, sinon on met null
       const earnedAt = earned ? new Date().toISOString() : null;
 
       const { error } = await supabase
@@ -228,11 +223,11 @@
 
   function showView(name) {
     state.view = name;
-    ["drop", "dashboard", "game"].forEach((v) =>
-      $("#view-" + v).classList.toggle("hidden", v !== name),
-    );
-    const btnReset = $("#btn-reset");
-    if (btnReset) btnReset.classList.toggle("hidden", name === "drop");
+    // On ne gère plus que 'dashboard' et 'game'
+    ["dashboard", "game"].forEach((v) => {
+      const el = $("#view-" + v);
+      if (el) el.classList.toggle("hidden", v !== name);
+    });
   }
 
   function goDashboard() {
@@ -352,7 +347,6 @@
       `<ul class="trophy-list">` +
       list
         .map((t) => {
-          // 👈 Formatage de la date
           const dateHtml = t.earnedTime
             ? `<span class="tdate">Obtenu le ${new Date(t.earnedTime).toLocaleDateString("fr-FR")}</span>`
             : "";
@@ -377,7 +371,6 @@
         const trophy = game.trophies.find((t) => t.id === tid);
         if (trophy) {
           trophy.earned = !trophy.earned;
-          // Si on coche, on met la date locale immédiatement pour l'affichage
           trophy.earnedTime = trophy.earned ? new Date().toISOString() : null;
 
           saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
@@ -388,56 +381,8 @@
   }
 
   // --- ÉVÉNEMENTS ---
-  const btnPick = $("#btn-pick");
-  if (btnPick)
-    btnPick.addEventListener("click", () => $("#file-input").click());
-
-  const fileInput = $("#file-input");
-  if (fileInput) {
-    fileInput.setAttribute("webkitdirectory", "");
-    fileInput.addEventListener("change", (e) => {
-      const files = Array.from(e.target.files);
-      if (files.length) processFolder(files);
-      e.target.value = "";
-    });
-  }
-
-  const btnReset = $("#btn-reset");
-  if (btnReset) {
-    btnReset.addEventListener("click", () => {
-      if (confirm("Voulez-vous vraiment tout effacer ?")) {
-        state.games = [];
-        showView("drop");
-      }
-    });
-  }
-
   const btnBack = $("#btn-back");
   if (btnBack) btnBack.addEventListener("click", goDashboard);
-
-  function processFolder(files) {
-    let jsonFile = files.find((f) => f.name.includes("tropmeta"));
-    if (!jsonFile) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = JSON.parse(e.target.result);
-      const trophees = data.metadata.trophyMetadata.map((t, i) => ({
-        id: i,
-        name: t.name,
-        description: t.detail,
-        grade: t.id === "0000" ? "platinum" : "bronze",
-        earned: false,
-        earnedTime: null,
-      }));
-      addOrUpdateGame({
-        npcommid: "MANUEL_" + Date.now(),
-        title: data.metadata.titleMetadata.name,
-        platform: "PS5",
-        trophies: trophees,
-      });
-    };
-    reader.readAsText(jsonFile);
-  }
 
   function connectWebSocket() {
     const ws = new WebSocket("ws://localhost:8765");
@@ -474,8 +419,6 @@
 
   // --- INITIALISATION ---
   async function init() {
-    showView("drop");
-
     // 1. Connexion anonyme à Supabase
     await initSupabase();
 
@@ -485,12 +428,12 @@
     // 3. Charger la progression depuis Supabase et l'appliquer
     if (state.games.length > 0) {
       await loadProgressFromSupabase();
-      goDashboard();
-    } else {
-      goDashboard();
     }
 
-    // 4. Connexion locale (si le .bat est lancé)
+    // 4. Afficher le dashboard direct
+    goDashboard();
+
+    // 5. Connexion locale (si le .bat est lancé)
     connectWebSocket();
   }
 
