@@ -1,14 +1,13 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Dashboard Direct)
+   PS Trophy Viewer — app.js (Version Finale avec Dates)
    ============================================================ */
 
 (() => {
   "use strict";
 
   // ⚠️ CONFIGURATION SUPABASE
-  const SUPABASE_URL = "https://ahacsjnxwswymhmqmizd.supabase.co";
-  const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoYWNzam54d3N3eW1obXFtaXpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzE5NjMsImV4cCI6MjEwODQ0Nzk2M30.clKOjewbJN1NnkxokpElE0KwueoX0-R_1tNPU9OMf_I";
+  const SUPABASE_URL = "https://ahacsjnxswymhmqmizd.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_5_mW0UxmK0PyVnr3nzfZgw_r-0rsMqH";
 
   const supabase = window.supabase.createClient(
     SUPABASE_URL,
@@ -75,7 +74,7 @@
     try {
       const { data, error } = await supabase
         .from("trophy_progress")
-        .select("game_id, trophy_id, earned")
+        .select("game_id, trophy_id, earned, earned_at")
         .eq("user_id", state.user.id);
 
       if (error) throw error;
@@ -84,13 +83,21 @@
         const progressMap = {};
         data.forEach((p) => {
           if (!progressMap[p.game_id]) progressMap[p.game_id] = {};
-          if (p.earned) progressMap[p.game_id][p.trophy_id] = true;
+          if (p.earned) {
+            progressMap[p.game_id][p.trophy_id] = {
+              earned: p.earned,
+              earned_at: p.earned_at,
+            };
+          }
         });
 
         state.games.forEach((g) => {
           if (progressMap[g.npcommid]) {
             g.trophies.forEach((t) => {
-              if (progressMap[g.npcommid][t.id]) t.earned = true;
+              if (progressMap[g.npcommid][t.id]) {
+                t.earned = progressMap[g.npcommid][t.id].earned;
+                t.earnedTime = progressMap[g.npcommid][t.id].earned_at; // 👈 Assignation de la date
+              }
             });
           }
         });
@@ -104,15 +111,22 @@
   async function saveProgressToSupabase(gameId, trophyId, earned) {
     if (!state.user) return;
     try {
-      const { error } = await supabase.from("trophy_progress").upsert(
-        {
-          user_id: state.user.id,
-          game_id: gameId,
-          trophy_id: trophyId,
-          earned: earned,
-        },
-        { onConflict: "user_id, game_id, trophy_id" },
-      );
+      // 👈 On génère la date du jour si on coche, sinon on met null
+      const earnedAt = earned ? new Date().toISOString() : null;
+
+      const { error } = await supabase
+        .from("trophy_progress")
+        .upsert(
+          {
+            user_id: state.user.id,
+            game_id: gameId,
+            trophy_id: trophyId,
+            earned: earned,
+            earned_at: earnedAt,
+          },
+          { onConflict: "user_id, game_id, trophy_id" },
+        );
+
       if (error) throw error;
       console.log(`💾 Trophée ${trophyId} sauvegardé sur Supabase.`);
     } catch (e) {
@@ -214,9 +228,11 @@
 
   function showView(name) {
     state.view = name;
-    ["dashboard", "game"].forEach((v) =>
+    ["drop", "dashboard", "game"].forEach((v) =>
       $("#view-" + v).classList.toggle("hidden", v !== name),
     );
+    const btnReset = $("#btn-reset");
+    if (btnReset) btnReset.classList.toggle("hidden", name === "drop");
   }
 
   function goDashboard() {
@@ -335,15 +351,23 @@
     container.innerHTML =
       `<ul class="trophy-list">` +
       list
-        .map(
-          (t) => `
+        .map((t) => {
+          // 👈 Formatage de la date
+          const dateHtml = t.earnedTime
+            ? `<span class="tdate">Obtenu le ${new Date(t.earnedTime).toLocaleDateString("fr-FR")}</span>`
+            : "";
+
+          return `
       <li class="trophy-row${t.earned ? "" : " locked"}" data-tid="${t.id}">
         <div class="medal">${t.iconUrl ? `<img src="${t.iconUrl}" style="width:100%;height:100%;object-fit:cover;">` : trophySvg(t.grade, 26)}</div>
         <div class="tinfo"><div class="tname">${esc(t.name)}</div><div class="tdesc">${esc(t.description)}</div></div>
-        <div class="tmeta"><span class="rarity">${esc(GRADE_LABEL[t.grade] || "Bronze")}</span></div>
+        <div class="tmeta">
+          <span class="rarity">${esc(GRADE_LABEL[t.grade] || "Bronze")}</span>
+          ${dateHtml}
+        </div>
       </li>
-    `,
-        )
+    `;
+        })
         .join("") +
       `</ul>`;
 
@@ -353,6 +377,9 @@
         const trophy = game.trophies.find((t) => t.id === tid);
         if (trophy) {
           trophy.earned = !trophy.earned;
+          // Si on coche, on met la date locale immédiatement pour l'affichage
+          trophy.earnedTime = trophy.earned ? new Date().toISOString() : null;
+
           saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
           renderGame();
         }
@@ -361,8 +388,56 @@
   }
 
   // --- ÉVÉNEMENTS ---
+  const btnPick = $("#btn-pick");
+  if (btnPick)
+    btnPick.addEventListener("click", () => $("#file-input").click());
+
+  const fileInput = $("#file-input");
+  if (fileInput) {
+    fileInput.setAttribute("webkitdirectory", "");
+    fileInput.addEventListener("change", (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length) processFolder(files);
+      e.target.value = "";
+    });
+  }
+
+  const btnReset = $("#btn-reset");
+  if (btnReset) {
+    btnReset.addEventListener("click", () => {
+      if (confirm("Voulez-vous vraiment tout effacer ?")) {
+        state.games = [];
+        showView("drop");
+      }
+    });
+  }
+
   const btnBack = $("#btn-back");
   if (btnBack) btnBack.addEventListener("click", goDashboard);
+
+  function processFolder(files) {
+    let jsonFile = files.find((f) => f.name.includes("tropmeta"));
+    if (!jsonFile) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = JSON.parse(e.target.result);
+      const trophees = data.metadata.trophyMetadata.map((t, i) => ({
+        id: i,
+        name: t.name,
+        description: t.detail,
+        grade: t.id === "0000" ? "platinum" : "bronze",
+        earned: false,
+        earnedTime: null,
+      }));
+      addOrUpdateGame({
+        npcommid: "MANUEL_" + Date.now(),
+        title: data.metadata.titleMetadata.name,
+        platform: "PS5",
+        trophies: trophees,
+      });
+    };
+    reader.readAsText(jsonFile);
+  }
 
   function connectWebSocket() {
     const ws = new WebSocket("ws://localhost:8765");
@@ -399,21 +474,23 @@
 
   // --- INITIALISATION ---
   async function init() {
+    showView("drop");
+
     // 1. Connexion anonyme à Supabase
     await initSupabase();
 
-    // 2. Charger les jeux depuis GitHub
+    // 2. Charger les jeux depuis GitHub ou local
     await loadGamesFromGitHub();
 
-    // 3. Charger la progression et afficher le dashboard
+    // 3. Charger la progression depuis Supabase et l'appliquer
     if (state.games.length > 0) {
       await loadProgressFromSupabase();
       goDashboard();
     } else {
-      goDashboard(); // Affiche "Aucun jeu trouvé" proprement
+      goDashboard();
     }
 
-    // 4. Connexion locale
+    // 4. Connexion locale (si le .bat est lancé)
     connectWebSocket();
   }
 
