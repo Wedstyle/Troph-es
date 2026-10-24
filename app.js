@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Cloud GitHub Finale)
+   PS Trophy Viewer — app.js (Version Autonome GitHub)
    ============================================================ */
 
 (() => {
@@ -29,7 +29,7 @@
         })[c],
     );
 
-  // --- GESTION DU CLOUD GITHUB ---
+  // --- GESTION DU CLOUD GITHUB (Progression) ---
   function getCreds() {
     return {
       token: localStorage.getItem("gh_token"),
@@ -64,7 +64,6 @@
           files: { "trophy_progress.json": { content: progress } },
         }),
       });
-      console.log("☁️ Sauvegarde cloud réussie");
     } catch (e) {
       console.error("Erreur Cloud", e);
     }
@@ -90,7 +89,6 @@
             localStorage.getItem("ps5_trophy_progress") || "{}",
           );
 
-          // Fusion intelligente : on garde ce qui est coché localement ET sur le cloud
           const merged = { ...cloudProgress };
           for (const gameId in localProgress) {
             if (!merged[gameId]) merged[gameId] = {};
@@ -98,7 +96,6 @@
               if (localProgress[gameId][tid]) merged[gameId][tid] = true;
             }
           }
-
           localStorage.setItem("ps5_trophy_progress", JSON.stringify(merged));
           return true;
         }
@@ -109,7 +106,7 @@
     return false;
   }
 
-  // --- SAUVEGARDE LOCALE ---
+  // --- SAUVEGARDE PROGRESSION ---
   function saveProgressToStorage() {
     const progress = {};
     state.games.forEach((g) => {
@@ -119,7 +116,7 @@
       });
     });
     localStorage.setItem("ps5_trophy_progress", JSON.stringify(progress));
-    pushToCloud(); // Envoi automatique au cloud
+    pushToCloud();
   }
 
   function applyProgressFromStorage() {
@@ -187,8 +184,6 @@
       $("#view-" + v).classList.toggle("hidden", v !== name),
     );
     $("#btn-reset").classList.toggle("hidden", name === "drop");
-
-    // 👇 LE BOUTON CLOUD EST MAINTENANT TOUJOURS VISIBLE 👇
     const btnCloud = $("#btn-cloud");
     if (btnCloud) btnCloud.style.display = "inline-block";
   }
@@ -210,7 +205,7 @@
     const grid = $("#game-grid");
     if (state.games.length === 0) {
       grid.innerHTML =
-        '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1;">Aucun jeu chargé. Clique sur "Sync Cloud" ou ajoute un dossier via le pont Python.</p>';
+        '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1;">Aucun jeu chargé.</p>';
       return;
     }
     grid.innerHTML = state.games
@@ -321,7 +316,7 @@
         const trophy = game.trophies.find((t) => t.id === tid);
         if (trophy) {
           trophy.earned = !trophy.earned;
-          saveProgressToStorage(); // Déclenche aussi pushToCloud()
+          saveProgressToStorage();
           renderGame();
         }
       });
@@ -340,25 +335,19 @@
   $("#btn-cloud").addEventListener("click", async () => {
     if (setupCloud()) {
       const success = await pullFromCloud();
-      applyProgressFromStorage();
-      if (state.view === "dashboard") renderDashboard();
-      if (state.view === "game") renderGame();
-
-      if (success)
-        alert(
-          "☁️ Synchronisation avec le Cloud réussie ! Ta progression a été mise à jour.",
-        );
-      else
-        alert(
-          "Impossible de récupérer les données. Vérifie ton Token et l'ID du Gist.",
-        );
+      if (success) {
+        applyProgressFromStorage();
+        alert("☁️ Progression synchronisée !");
+        if (state.view === "dashboard") renderDashboard();
+        if (state.view === "game") renderGame();
+      } else {
+        alert("Impossible de récupérer la progression. Vérifie ton Token.");
+      }
     }
   });
 
   $("#btn-reset").addEventListener("click", () => {
-    if (
-      confirm("Voulez-vous vraiment tout effacer (y compris les clés Cloud) ?")
-    ) {
+    if (confirm("Voulez-vous vraiment tout effacer ?")) {
       state.games = [];
       localStorage.clear();
       showView("drop");
@@ -396,7 +385,7 @@
       badge.id = "live-badge";
       badge.style.cssText =
         "position:fixed; top:20px; right:20px; background:#3ddc84; color:#000; padding:8px 16px; border-radius:20px; font-weight:bold; font-family:sans-serif; font-size:12px; z-index:9999; transition: all 0.3s;";
-      badge.textContent = "🟢 PS5 Connectée";
+      badge.textContent = "🟢 PS5 Connectée (Local)";
       document.body.appendChild(badge);
     };
     ws.onmessage = (event) => {
@@ -409,7 +398,7 @@
           badge.style.background = "#0072ce";
           badge.style.color = "#fff";
           setTimeout(() => {
-            badge.textContent = "🟢 PS5 Connectée";
+            badge.textContent = "🟢 PS5 Connectée (Local)";
             badge.style.background = "#3ddc84";
             badge.style.color = "#000";
           }, 3000);
@@ -419,14 +408,39 @@
     ws.onclose = () => document.getElementById("live-badge")?.remove();
   }
 
-  // --- INITIALISATION ---
+  // --- CHARGEMENT INITIAL DEPUIS GITHUB ---
+  async function loadFromGitHub() {
+    try {
+      // On lit le data.json qui est à côté de index.html
+      const res = await fetch("data.json?t=" + Date.now()); // Le ?t= évite le cache
+      if (res.ok) {
+        const games = await res.json();
+        if (Array.isArray(games) && games.length > 0) {
+          state.games = games;
+          applyProgressFromStorage();
+          goDashboard();
+          return true;
+        }
+      }
+    } catch (e) {
+      console.log("Pas de data.json sur le serveur, on attend le pont local.");
+    }
+    return false;
+  }
+
   async function init() {
     showView("drop");
-    // Si on a déjà les clés, on récupère la sauvegarde du cloud en silence
-    if (getCreds().token) {
-      const success = await pullFromCloud();
-      if (success) applyProgressFromStorage();
+    // 1. On tente de charger depuis GitHub
+    const loaded = await loadFromGitHub();
+
+    // 2. Si on n'a rien trouvé, on tente la mémoire locale
+    if (!loaded) {
+      if (getCreds().token) {
+        await pullFromCloud();
+      }
     }
+
+    // 3. On lance la connexion locale (au cas où on est sur le PC avec le .bat)
     connectWebSocket();
   }
 
