@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version PS5 Feel + Filtres)
+   PS Trophy Viewer — app.js (Version Sons PS5 Distincts)
    ============================================================ */
 
 (() => {
@@ -21,6 +21,7 @@
     user: null,
     filter: "all",
     sort: "default",
+    soundEnabled: true,
   };
 
   const GRADE_ORDER = ["platinum", "gold", "silver", "bronze"];
@@ -46,23 +47,75 @@
         })[c],
     );
 
-  // --- GESTION SUPABASE ---
+  // --- GESTION DES SONS PS5 ---
+  const sounds = {
+    trophy: new Audio("sounds/PS5NewTrophy.ogg"),
+    platinum: new Audio("sounds/PS5NewPlatinumTrophy.ogg"),
+    select: new Audio("sounds/PS5Select.ogg"), // 👈 Le nouveau son de navigation
+  };
+
+  // 👇 RÉGLAGE DU VOLUME (0.0 à 1.0)
+  sounds.trophy.volume = 0.3;
+  sounds.platinum.volume = 0.3;
+  sounds.select.volume = 0.2; // Un peu plus discret pour la navigation
+
+  function playSound(type) {
+    if (!state.soundEnabled) return;
+    const sound = sounds[type];
+    if (sound) {
+      sound.currentTime = 0;
+      sound.play().catch((e) => console.log("Lecture audio bloquée", e));
+    }
+  }
+
+  // --- EFFET TILT 3D ---
+  function applyTilt3D() {
+    $$(".game-card").forEach((card) => {
+      card.addEventListener("mousemove", (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = ((y - centerY) / centerY) * -10;
+        const rotateY = ((x - centerX) / centerX) * 10;
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+      });
+      card.addEventListener("mouseleave", () => {
+        card.style.transform =
+          "perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)";
+      });
+    });
+  }
+
+  // --- ANIMATION DES NOMBRES ---
+  function animateValue(obj, start, end, duration) {
+    if (!obj) return;
+    let startTimestamp = null;
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      obj.textContent = Math.floor(progress * (end - start) + start);
+      if (progress < 1) window.requestAnimationFrame(step);
+      else obj.textContent = end;
+    };
+    window.requestAnimationFrame(step);
+  }
+
+  // --- SUPABASE ---
   async function initSupabase() {
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (session && session.user) {
-        state.user = session.user;
-        console.log("✅ Session existante récupérée :", state.user.id);
-      } else {
+      if (session && session.user) state.user = session.user;
+      else {
         const { data, error } = await supabase.auth.signInAnonymously();
         if (error) throw error;
         state.user = data.user;
-        console.log("✅ Nouvelle session anonyme créée :", state.user.id);
       }
     } catch (e) {
-      console.error("❌ Erreur Supabase Auth :", e);
+      console.error("Auth Err:", e);
     }
   }
 
@@ -73,7 +126,6 @@
         .from("trophy_progress")
         .select("game_id, trophy_id, earned, earned_at")
         .eq("user_id", state.user.id);
-
       if (error) throw error;
       if (data) {
         const progressMap = {};
@@ -95,10 +147,9 @@
             });
           }
         });
-        console.log("🔄 Progression chargée.");
       }
     } catch (e) {
-      console.error("❌ Erreur chargement :", e);
+      console.error("Load Err:", e);
     }
   }
 
@@ -117,9 +168,8 @@
         { onConflict: "user_id, game_id, trophy_id" },
       );
       if (error) throw error;
-      console.log(`💾 Trophée ${trophyId} sauvegardé.`);
     } catch (e) {
-      console.error("❌ Erreur sauvegarde :", e);
+      console.error("Save Err:", e);
     }
   }
 
@@ -165,7 +215,7 @@
     container.innerHTML = `
       <div class="gs-card main-stat">
         <div class="gs-title">Complétion Globale</div>
-        <div class="gs-value">${globalPct}%</div>
+        <div class="gs-value"><span id="global-pct-anim">0</span>%</div>
         <div class="gs-progress-bar"><i style="width:${globalPct}%"></i></div>
         <div style="font-size:12px; color:var(--txt-muted); margin-top:8px; font-weight:600;">${totalEarned} / ${totalTrophies} trophées obtenus</div>
       </div>
@@ -178,55 +228,12 @@
       `,
       ).join("")}
     `;
-  }
-
-  function addOrUpdateGame(game) {
-    const existingIndex = state.games.findIndex(
-      (g) => g.npcommid === game.npcommid,
-    );
-    if (existingIndex >= 0) state.games[existingIndex] = game;
-    else state.games.push(game);
-    goDashboard();
-  }
-
-  function computeStats(game) {
-    const stats = {
-      platinum: [0, 0],
-      gold: [0, 0],
-      silver: [0, 0],
-      bronze: [0, 0],
-    };
-    let earned = 0;
-    for (const t of game.trophies) {
-      if (!stats[t.grade]) continue;
-      stats[t.grade][1]++;
-      if (t.earned) {
-        stats[t.grade][0]++;
-        earned++;
-      }
-    }
-    return {
-      stats,
-      earned,
-      total: game.trophies.length,
-      pct: game.trophies.length
-        ? Math.round((earned / game.trophies.length) * 100)
-        : 0,
-    };
-  }
-
-  function showView(name) {
-    state.view = name;
-    ["dashboard", "game"].forEach((v) => {
-      const el = $("#view-" + v);
-      if (el) el.classList.toggle("hidden", v !== name);
-    });
+    animateValue($("#global-pct-anim"), 0, globalPct, 800);
   }
 
   function goDashboard() {
     state.currentId = null;
-    // 👈 On remet le fond par défaut
-    document.body.style.background = "var(--bg)";
+    playSound("select"); // 👈 Son de navigation
     renderDashboard();
     showView("dashboard");
   }
@@ -236,6 +243,7 @@
     state.search = "";
     state.filter = "all";
     state.sort = "default";
+    playSound("select"); // 👈 Son de navigation
     renderGame();
     showView("game");
   }
@@ -275,16 +283,51 @@
       `;
       })
       .join("");
-    requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
       $$(".gc-bar > i").forEach(
         (bar) => (bar.style.width = bar.dataset.pct + "%"),
-      ),
-    );
+      );
+      applyTilt3D();
+    });
     grid
       .querySelectorAll(".game-card")
       .forEach((card) =>
         card.addEventListener("click", () => goGame(card.dataset.id)),
       );
+  }
+
+  function computeStats(game) {
+    const stats = {
+      platinum: [0, 0],
+      gold: [0, 0],
+      silver: [0, 0],
+      bronze: [0, 0],
+    };
+    let earned = 0;
+    for (const t of game.trophies) {
+      if (!stats[t.grade]) continue;
+      stats[t.grade][1]++;
+      if (t.earned) {
+        stats[t.grade][0]++;
+        earned++;
+      }
+    }
+    return {
+      stats,
+      earned,
+      total: game.trophies.length,
+      pct: game.trophies.length
+        ? Math.round((earned / game.trophies.length) * 100)
+        : 0,
+    };
+  }
+
+  function showView(name) {
+    state.view = name;
+    ["dashboard", "game"].forEach((v) => {
+      const el = $("#view-" + v);
+      if (el) el.classList.toggle("hidden", v !== name);
+    });
   }
 
   function renderToolbar() {
@@ -309,75 +352,22 @@
     const game = state.games.find((g) => g.npcommid === state.currentId);
     if (!game) return;
 
-    // 👇 EFFET PS5 : Le fond prend la couleur de l'icône
-    if (game.iconUrl) {
-      const img = new Image();
-      img.src = game.iconUrl;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        // On réduit l'image à 10x10 pour un calcul rapide
-        canvas.width = 10;
-        canvas.height = 10;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, 10, 10);
-
-        const imageData = ctx.getImageData(0, 0, 10, 10).data;
-        let rTotal = 0,
-          gTotal = 0,
-          bTotal = 0,
-          count = 0;
-
-        // On parcourt les pixels pour trouver la vraie couleur (on ignore le blanc et le noir pur)
-        for (let i = 0; i < imageData.length; i += 4) {
-          const r = imageData[i];
-          const g = imageData[i + 1];
-          const b = imageData[i + 2];
-
-          // Si le pixel n'est ni trop clair (blanc) ni trop sombre (noir)
-          if (r + g + b > 100 && r + g + b < 600) {
-            rTotal += r;
-            gTotal += g;
-            bTotal += b;
-            count++;
-          }
-        }
-
-        if (count > 0) {
-          const avgR = Math.floor(rTotal / count);
-          const avgG = Math.floor(gTotal / count);
-          const avgB = Math.floor(bTotal / count);
-
-          // On applique la couleur avec une opacité très faible (0.12) pour garder le côté sombre
-          document.body.style.background = `radial-gradient(circle at 50% 0%, rgba(${avgR}, ${avgG}, ${avgB}, 0.12) 0%, var(--bg) 60%)`;
-        } else {
-          // Si l'image est monochrome (tout blanc ou tout noir), on garde le fond par défaut
-          document.body.style.background = "var(--bg)";
-        }
-      };
-    } else {
-      document.body.style.background = "var(--bg)";
-    }
-    // 👆 FIN EFFET PS5
-
     const { stats, earned, total, pct } = computeStats(game);
     const statsHtml = GRADE_ORDER.map(
       (g) =>
-        `<div class="stat">${trophySvg(g, 22)}<span class="stat-v">${stats[g][0]}<small>/${stats[g][1]}</small></span></div>`,
+        `<div class="stat">${trophySvg(g, 22)}<span class="stat-v"><span class="stat-anim" data-target="${stats[g][0]}">0</span><small>/${stats[g][1]}</small></span></div>`,
     ).join("");
-    const bgStyle = game.backgroundUrl
-      ? `background-image: url('${game.backgroundUrl}');`
-      : "";
     const gameIcon = game.iconUrl
       ? `<img src="${game.iconUrl}" style="width:100%;height:100%;object-fit:cover;">`
       : `<svg viewBox="0 0 24 24" fill="none" stroke="#0072ce" stroke-width="2"><path d="M12 2L15 9H22L16 14L18 21L12 17L6 21L8 14L2 9H9L12 2Z"/></svg>`;
 
     $("#game-detail").innerHTML = `
-      <div class="game-header" style="${bgStyle}">
+      <div class="game-header">
         <div class="gh-top">
           <div class="gh-icon">${gameIcon}</div>
           <div class="gh-info"><h1 class="gh-title">${esc(game.title)}</h1><div class="gh-meta">${esc(game.platform)} · ${earned}/${total} trophées</div></div>
           <div class="gh-progress">
-            <div class="gh-pct">${pct}<small>%</small></div>
+            <div class="gh-pct"><span id="game-pct-anim">0</span><small>%</small></div>
             <div class="gh-bar"><i data-pct="${pct}" style="width:0"></i></div>
             <div class="gh-label">Complétion</div>
           </div>
@@ -387,6 +377,11 @@
       ${renderToolbar()}
       <div id="trophy-list-container"></div>
     `;
+
+    animateValue($("#game-pct-anim"), 0, pct, 800);
+    $$(".stat-anim").forEach((el) =>
+      animateValue(el, 0, parseInt(el.dataset.target), 800),
+    );
 
     $("#game-detail")
       .querySelectorAll(".filter-btn")
@@ -415,7 +410,6 @@
 
   function renderTrophyList(game) {
     const q = state.search.trim().toLowerCase();
-
     let list = game.trophies.filter((t) => {
       if (state.filter === "earned" && !t.earned) return false;
       if (state.filter === "unearned" && t.earned) return false;
@@ -425,18 +419,18 @@
     });
 
     if (state.sort === "date") {
-      list.sort((a, b) => {
-        const dateA = a.earnedTime ? new Date(a.earnedTime).getTime() : 0;
-        const dateB = b.earnedTime ? new Date(b.earnedTime).getTime() : 0;
-        return dateB - dateA;
-      });
+      list.sort(
+        (a, b) =>
+          (b.earnedTime ? new Date(b.earnedTime).getTime() : 0) -
+          (a.earnedTime ? new Date(a.earnedTime).getTime() : 0),
+      );
     } else if (state.sort === "alpha") {
       list.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     const container = $("#trophy-list-container");
     if (!list.length) {
-      container.innerHTML = `<div class="empty-msg">Aucun trophée ne correspond à ces filtres.</div>`;
+      container.innerHTML = `<div class="empty-msg">Aucun trophée.</div>`;
       return;
     }
 
@@ -447,17 +441,12 @@
           const dateHtml = t.earnedTime
             ? `<span class="tdate">Obtenu le ${new Date(t.earnedTime).toLocaleDateString("fr-FR")}</span>`
             : "";
-
           return `
       <li class="trophy-row${t.earned ? "" : " locked"}" data-tid="${t.id}">
         <div class="medal">${t.iconUrl ? `<img src="${t.iconUrl}" style="width:100%;height:100%;object-fit:cover;">` : trophySvg(t.grade, 26)}</div>
         <div class="tinfo"><div class="tname">${esc(t.name)}</div><div class="tdesc">${esc(t.description)}</div></div>
-        <div class="tmeta">
-          <span class="rarity">${esc(GRADE_LABEL[t.grade] || "Bronze")}</span>
-          ${dateHtml}
-        </div>
-      </li>
-    `;
+        <div class="tmeta"><span class="rarity">${esc(GRADE_LABEL[t.grade] || "Bronze")}</span>${dateHtml}</div>
+      </li>`;
         })
         .join("") +
       `</ul>`;
@@ -470,12 +459,68 @@
           row.classList.add("animate-pop");
           setTimeout(() => row.classList.remove("animate-pop"), 300);
 
+          // 👇 LE SON DE TROPHÉE SE JOUE ICI (uniquement pour les trophées)
+          if (!trophy.earned) {
+            if (trophy.grade === "platinum") {
+              playSound("platinum");
+              confetti({
+                particleCount: 150,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: ["#a3d5ff", "#f5c14b", "#ffffff"],
+              });
+            } else {
+              playSound("trophy");
+              const color =
+                trophy.grade === "gold"
+                  ? "#f5c14b"
+                  : trophy.grade === "silver"
+                    ? "#c9d3df"
+                    : "#c9803f";
+              confetti({
+                particleCount: 40,
+                spread: 60,
+                origin: { y: 0.6 },
+                colors: [color],
+              });
+            }
+          }
+
           trophy.earned = !trophy.earned;
           trophy.earnedTime = trophy.earned ? new Date().toISOString() : null;
 
-          saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
+          if (trophy.earned) {
+            row.classList.remove("locked");
+            const tmeta = row.querySelector(".tmeta");
+            if (tmeta && !tmeta.querySelector(".tdate")) {
+              const dateSpan = document.createElement("span");
+              dateSpan.className = "tdate";
+              dateSpan.textContent = `Obtenu le ${new Date(trophy.earnedTime).toLocaleDateString("fr-FR")}`;
+              tmeta.appendChild(dateSpan);
+            }
+          } else {
+            row.classList.add("locked");
+            const dateSpan = row.querySelector(".tdate");
+            if (dateSpan) dateSpan.remove();
+          }
 
-          setTimeout(() => renderGame(), 150);
+          const { stats, earned, total, pct } = computeStats(game);
+          animateValue(
+            $("#game-pct-anim"),
+            parseInt($("#game-pct-anim").textContent),
+            pct,
+            400,
+          );
+          const newBars = $$("#game-detail .gh-bar > i");
+          if (newBars[0]) newBars[0].style.width = pct + "%";
+
+          const statElements = $$("#game-detail .stat-anim");
+          statElements.forEach((el, i) => {
+            const grade = GRADE_ORDER[i];
+            animateValue(el, parseInt(el.textContent), stats[grade][0], 400);
+          });
+
+          saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
         }
       });
     });
@@ -485,23 +530,12 @@
   const btnBack = $("#btn-back");
   if (btnBack) btnBack.addEventListener("click", goDashboard);
 
-  function connectWebSocket() {
-    const ws = new WebSocket("ws://localhost:8765");
-    ws.onopen = () => {
-      const badge = document.createElement("div");
-      badge.id = "live-badge";
-      badge.style.cssText =
-        "position:fixed; top:20px; right:20px; background:#3ddc84; color:#000; padding:8px 16px; border-radius:20px; font-weight:bold; font-family:sans-serif; font-size:12px; z-index:9999;";
-      badge.textContent = "🟢 PS5 Connectée (Local)";
-      document.body.appendChild(badge);
-    };
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "full_game_data") {
-        addOrUpdateGame(msg.game);
-      }
-    };
-    ws.onclose = () => document.getElementById("live-badge")?.remove();
+  const btnSound = $("#btn-sound");
+  if (btnSound) {
+    btnSound.addEventListener("click", () => {
+      state.soundEnabled = !state.soundEnabled;
+      btnSound.textContent = state.soundEnabled ? "🔊" : "🔇";
+    });
   }
 
   async function loadGamesFromGitHub() {
@@ -523,7 +557,6 @@
     await loadGamesFromGitHub();
     if (state.games.length > 0) await loadProgressFromSupabase();
     goDashboard();
-    connectWebSocket();
   }
 
   init();

@@ -4,11 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PS Trophy Viewer</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="style.css" />
+    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Confettis -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   </head>
   <body>
-    <!-- ===================== HEADER ===================== -->
     <header class="top-bar">
       <div class="logo">
         <svg
@@ -24,22 +30,27 @@
         </svg>
         <span>PS Trophy Viewer</span>
       </div>
+      <div class="actions">
+        <button
+          id="btn-sound"
+          class="btn btn-ghost"
+          title="Activer/Désactiver le son"
+        >
+          🔊
+        </button>
+      </div>
     </header>
 
-    <!-- ===================== VIEWS ===================== -->
     <main id="app">
-      <!-- VUE 1 : DASHBOARD (Liste des jeux + Stats) -->
       <section id="view-dashboard" class="view hidden">
         <div class="dashboard-head">
           <h1>Mes jeux</h1>
           <span class="badge" id="games-count">0 jeu</span>
         </div>
-
         <div id="global-stats" class="global-stats"></div>
         <div class="game-grid" id="game-grid"></div>
       </section>
 
-      <!-- VUE 2 : DÉTAIL JEU (Liste des trophées) -->
       <section id="view-game" class="view hidden">
         <button class="btn btn-ghost back-btn" id="btn-back">
           ← Retour aux jeux
