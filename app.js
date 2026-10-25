@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Sons PS5 Distincts)
+   PS Trophy Viewer — app.js (Version Finale)
    ============================================================ */
 
 (() => {
@@ -47,24 +47,102 @@
         })[c],
     );
 
-  // --- GESTION DES SONS PS5 ---
+  // ============================================================
+  // SYSTÈME DE NIVEAU PSN
+  // ============================================================
+  const PSN_POINTS = { bronze: 15, silver: 30, gold: 90, platinum: 300 };
+  const PSN_LEVEL_TIERS = [
+    { minLevel: 1, pointsPerLevel: 60 },
+    { minLevel: 100, pointsPerLevel: 90 },
+    { minLevel: 200, pointsPerLevel: 450 },
+    { minLevel: 300, pointsPerLevel: 900 },
+    { minLevel: 400, pointsPerLevel: 1350 },
+    { minLevel: 500, pointsPerLevel: 1800 },
+    { minLevel: 600, pointsPerLevel: 2250 },
+    { minLevel: 700, pointsPerLevel: 2700 },
+    { minLevel: 800, pointsPerLevel: 3150 },
+    { minLevel: 900, pointsPerLevel: 3600 },
+  ];
+  const PSN_MAX_LEVEL = 999;
+  const PSN_TITLES = [
+    { level: 1, title: "Novice" },
+    { level: 3, title: "Apprenti" },
+    { level: 10, title: "Chasseur" },
+    { level: 25, title: "Traqueur" },
+    { level: 50, title: "Élite" },
+    { level: 100, title: "Maître" },
+    { level: 200, title: "Grand Maître" },
+    { level: 400, title: "Légende" },
+    { level: 700, title: "Mythe" },
+    { level: 999, title: "Légende Absolue" },
+  ];
+
+  function getHunterLevel() {
+    let totalPoints = 0;
+    state.games.forEach((g) => {
+      g.trophies.forEach((t) => {
+        if (t.earned && PSN_POINTS[t.grade]) totalPoints += PSN_POINTS[t.grade];
+      });
+    });
+
+    let level = 1;
+    let remainingPoints = totalPoints;
+    let pointsNeededForNextLevel = PSN_LEVEL_TIERS[0].pointsPerLevel;
+
+    while (level < PSN_MAX_LEVEL) {
+      let currentTier = PSN_LEVEL_TIERS[0];
+      for (const tier of PSN_LEVEL_TIERS) {
+        if (level >= tier.minLevel) currentTier = tier;
+      }
+      pointsNeededForNextLevel = currentTier.pointsPerLevel;
+
+      if (remainingPoints >= pointsNeededForNextLevel) {
+        remainingPoints -= pointsNeededForNextLevel;
+        level++;
+      } else break;
+    }
+
+    const progressPct =
+      pointsNeededForNextLevel > 0
+        ? (remainingPoints / pointsNeededForNextLevel) * 100
+        : 0;
+    let levelRank = "bronze";
+    if (level >= 300) levelRank = "silver";
+    if (level >= 600) levelRank = "gold";
+    if (level >= 999) levelRank = "platinum";
+
+    let currentTitle = PSN_TITLES[0].title;
+    for (const t of PSN_TITLES) {
+      if (level >= t.level) currentTitle = t.title;
+    }
+
+    return {
+      totalPoints,
+      level,
+      currentLevelPoints: remainingPoints,
+      pointsPerLevel: pointsNeededForNextLevel,
+      progressPct,
+      title: currentTitle,
+      levelRank,
+    };
+  }
+
+  // --- SONS PS5 ---
   const sounds = {
     trophy: new Audio("sounds/PS5NewTrophy.ogg"),
     platinum: new Audio("sounds/PS5NewPlatinumTrophy.ogg"),
-    select: new Audio("sounds/PS5Select.ogg"), // 👈 Le nouveau son de navigation
+    select: new Audio("sounds/PS5Select.ogg"),
   };
-
-  // 👇 RÉGLAGE DU VOLUME (0.0 à 1.0)
   sounds.trophy.volume = 0.3;
   sounds.platinum.volume = 0.3;
-  sounds.select.volume = 0.2; // Un peu plus discret pour la navigation
+  sounds.select.volume = 0.2;
 
   function playSound(type) {
     if (!state.soundEnabled) return;
     const sound = sounds[type];
     if (sound) {
       sound.currentTime = 0;
-      sound.play().catch((e) => console.log("Lecture audio bloquée", e));
+      sound.play().catch(() => {});
     }
   }
 
@@ -75,10 +153,8 @@
         const rect = card.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-        const rotateX = ((y - centerY) / centerY) * -10;
-        const rotateY = ((x - centerX) / centerX) * 10;
+        const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -10;
+        const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 10;
         card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
       });
       card.addEventListener("mouseleave", () => {
@@ -182,6 +258,39 @@
     </svg>`;
   }
 
+  function renderHunterCard() {
+    const container = $("#hunter-level-card");
+    if (!container) return;
+    const stats = getHunterLevel();
+
+    const iconMap = {
+      bronze: "nbronze(2020+).png",
+      silver: "nsilver(2020+).png",
+      gold: "ngold(2020+).png",
+      platinum: "nplatinum(2020+).png",
+    };
+    const iconFile = iconMap[stats.levelRank];
+
+    container.innerHTML = `
+      <div class="hc-icon-wrap">
+        <img src="level-icons/${iconFile}" alt="Niveau ${stats.level}">
+        <div class="hc-level-badge">${stats.level}</div>
+      </div>
+      
+      <div class="hc-details">
+        <div class="hc-header">
+          <div class="hc-title">${stats.title}</div>
+          <div class="hc-score">${stats.totalPoints.toLocaleString("fr-FR")} PTS</div>
+        </div>
+        
+        <div class="hc-progress-wrap">
+          <div class="hc-xp-bar"><i style="width: ${stats.progressPct}%"></i></div>
+          <div class="hc-xp-text">${stats.currentLevelPoints} / ${stats.pointsPerLevel} XP</div>
+        </div>
+      </div>
+    `;
+  }
+
   function renderGlobalStats() {
     const container = $("#global-stats");
     if (!container || state.games.length === 0) {
@@ -231,9 +340,46 @@
     animateValue($("#global-pct-anim"), 0, globalPct, 800);
   }
 
+  function computeStats(game) {
+    const stats = {
+      platinum: [0, 0],
+      gold: [0, 0],
+      silver: [0, 0],
+      bronze: [0, 0],
+    };
+    let earned = 0;
+    for (const t of game.trophies) {
+      if (!stats[t.grade]) continue;
+      stats[t.grade][1]++;
+      if (t.earned) {
+        stats[t.grade][0]++;
+        earned++;
+      }
+    }
+    return {
+      stats,
+      earned,
+      total: game.trophies.length,
+      pct: game.trophies.length
+        ? Math.round((earned / game.trophies.length) * 100)
+        : 0,
+    };
+  }
+
+  // --- NAVIGATION ---
+  function showView(name) {
+    state.view = name;
+    ["dashboard", "game", "timeline"].forEach((v) => {
+      const el = $("#view-" + v);
+      if (el) el.classList.toggle("hidden", v !== name);
+    });
+  }
+
   function goDashboard() {
     state.currentId = null;
-    playSound("select"); // 👈 Son de navigation
+    playSound("select");
+    $$(".actions .btn").forEach((b) => b.classList.remove("active"));
+    $("#btn-nav-dash").classList.add("active");
     renderDashboard();
     showView("dashboard");
   }
@@ -243,15 +389,26 @@
     state.search = "";
     state.filter = "all";
     state.sort = "default";
-    playSound("select"); // 👈 Son de navigation
+    playSound("select");
     renderGame();
     showView("game");
   }
 
+  function goTimeline() {
+    playSound("select");
+    $$(".actions .btn").forEach((b) => b.classList.remove("active"));
+    $("#btn-nav-timeline").classList.add("active");
+    renderTimeline();
+    showView("timeline");
+  }
+
+  // --- DASHBOARD ---
   function renderDashboard() {
     $("#games-count").textContent = `${state.games.length} jeu(x)`;
+    renderHunterCard();
     renderGlobalStats();
     const grid = $("#game-grid");
+
     if (state.games.length === 0) {
       grid.innerHTML =
         '<p style="color:#888; text-align:center; width:100%; grid-column: 1/-1; padding: 40px;">Aucun jeu trouvé.</p>';
@@ -283,6 +440,7 @@
       `;
       })
       .join("");
+
     requestAnimationFrame(() => {
       $$(".gc-bar > i").forEach(
         (bar) => (bar.style.width = bar.dataset.pct + "%"),
@@ -296,40 +454,7 @@
       );
   }
 
-  function computeStats(game) {
-    const stats = {
-      platinum: [0, 0],
-      gold: [0, 0],
-      silver: [0, 0],
-      bronze: [0, 0],
-    };
-    let earned = 0;
-    for (const t of game.trophies) {
-      if (!stats[t.grade]) continue;
-      stats[t.grade][1]++;
-      if (t.earned) {
-        stats[t.grade][0]++;
-        earned++;
-      }
-    }
-    return {
-      stats,
-      earned,
-      total: game.trophies.length,
-      pct: game.trophies.length
-        ? Math.round((earned / game.trophies.length) * 100)
-        : 0,
-    };
-  }
-
-  function showView(name) {
-    state.view = name;
-    ["dashboard", "game"].forEach((v) => {
-      const el = $("#view-" + v);
-      if (el) el.classList.toggle("hidden", v !== name);
-    });
-  }
-
+  // --- DÉTAIL JEU ---
   function renderToolbar() {
     return `
       <div class="toolbar">
@@ -459,7 +584,6 @@
           row.classList.add("animate-pop");
           setTimeout(() => row.classList.remove("animate-pop"), 300);
 
-          // 👇 LE SON DE TROPHÉE SE JOUE ICI (uniquement pour les trophées)
           if (!trophy.earned) {
             if (trophy.grade === "platinum") {
               playSound("platinum");
@@ -520,15 +644,90 @@
             animateValue(el, parseInt(el.textContent), stats[grade][0], 400);
           });
 
+          renderHunterCard();
           saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
         }
       });
     });
   }
 
+  // --- TIMELINE ---
+  function renderTimeline() {
+    const container = $("#timeline-container");
+    if (!container) return;
+
+    let allEarned = [];
+    state.games.forEach((g) => {
+      g.trophies.forEach((t) => {
+        if (t.earned && t.earnedTime) {
+          allEarned.push({ ...t, gameTitle: g.title, gameId: g.npcommid });
+        }
+      });
+    });
+
+    allEarned.sort((a, b) => new Date(b.earnedTime) - new Date(a.earnedTime));
+
+    if (allEarned.length === 0) {
+      container.innerHTML = `<div class="empty-msg">Aucun trophée obtenu pour le moment. Cochez des trophées pour voir la magie opérer !</div>`;
+      return;
+    }
+
+    const groups = {};
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    allEarned.forEach((trophy) => {
+      const d = new Date(trophy.earnedTime);
+      let dateLabel = "";
+      if (d.toDateString() === today.toDateString()) dateLabel = "Aujourd'hui";
+      else if (d.toDateString() === yesterday.toDateString())
+        dateLabel = "Hier";
+      else {
+        dateLabel = d.toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      }
+      if (!groups[dateLabel]) groups[dateLabel] = [];
+      groups[dateLabel].push(trophy);
+    });
+
+    let html = "";
+    for (const [dateLabel, trophies] of Object.entries(groups)) {
+      html += `
+        <div class="timeline-date-group">
+          <div class="timeline-date-label">${dateLabel}</div>
+          <div class="timeline-items">
+            ${trophies
+              .map(
+                (t) => `
+              <div class="timeline-item">
+                <div class="ti-icon">
+                  ${t.iconUrl ? `<img src="${t.iconUrl}">` : trophySvg(t.grade, 20)}
+                </div>
+                <div class="ti-info">
+                  <div class="ti-name">${esc(t.name)}</div>
+                  <div class="ti-game">${esc(t.gameTitle)}</div>
+                </div>
+                <div class="ti-grade ${t.grade}">${esc(GRADE_LABEL[t.grade] || "Bronze")}</div>
+              </div>
+            `,
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  }
+
   // --- INITIALISATION ---
-  const btnBack = $("#btn-back");
-  if (btnBack) btnBack.addEventListener("click", goDashboard);
+  $("#btn-back").addEventListener("click", goDashboard);
+  $("#btn-nav-dash").addEventListener("click", goDashboard);
+  $("#btn-nav-timeline").addEventListener("click", goTimeline);
 
   const btnSound = $("#btn-sound");
   if (btnSound) {

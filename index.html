@@ -9,9 +9,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Confettis -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   </head>
   <body>
@@ -30,7 +28,10 @@
         </svg>
         <span>PS Trophy Viewer</span>
       </div>
+
       <div class="actions">
+        <button id="btn-nav-dash" class="btn btn-ghost active">🎮 Jeux</button>
+        <button id="btn-nav-timeline" class="btn btn-ghost">📜 Timeline</button>
         <button
           id="btn-sound"
           class="btn btn-ghost"
@@ -42,20 +43,32 @@
     </header>
 
     <main id="app">
+      <!-- VUE 1 : DASHBOARD -->
       <section id="view-dashboard" class="view hidden">
         <div class="dashboard-head">
           <h1>Mes jeux</h1>
           <span class="badge" id="games-count">0 jeu</span>
         </div>
+
+        <div id="hunter-level-card" class="hunter-card"></div>
         <div id="global-stats" class="global-stats"></div>
         <div class="game-grid" id="game-grid"></div>
       </section>
 
+      <!-- VUE 2 : DÉTAIL JEU -->
       <section id="view-game" class="view hidden">
         <button class="btn btn-ghost back-btn" id="btn-back">
           ← Retour aux jeux
         </button>
         <div id="game-detail"></div>
+      </section>
+
+      <!-- VUE 3 : TIMELINE -->
+      <section id="view-timeline" class="view hidden">
+        <div class="dashboard-head">
+          <h1>Mes exploits récents</h1>
+        </div>
+        <div class="timeline-container" id="timeline-container"></div>
       </section>
     </main>
 
