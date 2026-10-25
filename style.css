@@ -1022,3 +1022,98 @@ body::before {
     gap: 4px;
   }
 }
+/* ============================================================
+   NOUVEAU : MUR DES PLATINES
+   ============================================================ */
+.platinum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.platinum-card {
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.platinum-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px -10px rgba(163, 213, 255, 0.3);
+}
+.platinum-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at top,
+    rgba(163, 213, 255, 0.1),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.platinum-card img {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  object-fit: cover;
+  margin-bottom: 16px;
+  border: 2px solid rgba(163, 213, 255, 0.3);
+  box-shadow: 0 0 20px rgba(163, 213, 255, 0.1);
+  z-index: 1;
+}
+.platinum-card .pc-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+  z-index: 1;
+}
+.platinum-card .pc-date {
+  font-size: 11px;
+  color: #a3d5ff;
+  font-weight: 600;
+  z-index: 1;
+}
+.platinum-card .pc-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  opacity: 0.5;
+  z-index: 1;
+}
+
+/* ============================================================
+   NOUVEAU : GRAPHIQUE DE PROGRESSION
+   ============================================================ */
+.chart-container {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  height: 250px;
+  position: relative;
+}
+.chart-container h3 {
+  margin: 0 0 15px 0;
+  font-size: 14px;
+  color: var(--txt-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+.chart-container canvas {
+  width: 100% !important;
+  height: 180px !important;
+}
