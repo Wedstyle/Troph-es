@@ -5,7 +5,7 @@
 (() => {
   "use strict";
 
-  const SUPABASE_URL = "https://ahacsjnxswymhmqmizd.supabase.co";
+  const SUPABASE_URL = "https://ahacsjnxwswymhmqmizd.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoYWNzam54d3N3eW1obXFtaXpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzE5NjMsImV4cCI6MjEwODQ0Nzk2M30.clKOjewbJN1NnkxokpElE0KwueoX0-R_1tNPU9OMf_I";
   const supabase = window.supabase.createClient(
