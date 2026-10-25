@@ -9,11 +9,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Confettis -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Chart.js pour le graphique -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body>
@@ -39,6 +36,7 @@
           🏆 Platines
         </button>
         <button id="btn-nav-timeline" class="btn btn-ghost">📜 Timeline</button>
+        <button id="btn-nav-stats" class="btn btn-ghost">📊 Stats</button>
         <button
           id="btn-sound"
           class="btn btn-ghost"
@@ -50,26 +48,16 @@
     </header>
 
     <main id="app">
-      <!-- VUE 1 : DASHBOARD -->
       <section id="view-dashboard" class="view hidden">
         <div class="dashboard-head">
           <h1>Mes jeux</h1>
           <span class="badge" id="games-count">0 jeu</span>
         </div>
-
         <div id="hunter-level-card" class="hunter-card"></div>
-
-        <!-- Graphique de progression -->
-        <div class="chart-container">
-          <h3>Évolution du Score de Chasseur</h3>
-          <canvas id="progressChart"></canvas>
-        </div>
-
         <div id="global-stats" class="global-stats"></div>
         <div class="game-grid" id="game-grid"></div>
       </section>
 
-      <!-- VUE 2 : DÉTAIL JEU -->
       <section id="view-game" class="view hidden">
         <button class="btn btn-ghost back-btn" id="btn-back">
           ← Retour aux jeux
@@ -77,7 +65,6 @@
         <div id="game-detail"></div>
       </section>
 
-      <!-- VUE 3 : TIMELINE -->
       <section id="view-timeline" class="view hidden">
         <div class="dashboard-head">
           <h1>Mes exploits récents</h1>
@@ -85,13 +72,23 @@
         <div class="timeline-container" id="timeline-container"></div>
       </section>
 
-      <!-- VUE 4 : MUR DES PLATINES -->
       <section id="view-platinums" class="view hidden">
         <div class="dashboard-head">
           <h1>Mur des Platines</h1>
           <span class="badge" id="platinum-count">0 Platine(s)</span>
         </div>
         <div class="platinum-grid" id="platinum-grid"></div>
+      </section>
+
+      <!-- 👇 NOUVELLE VUE STATS 👇 -->
+      <section id="view-stats" class="view hidden">
+        <div class="dashboard-head">
+          <h1>Mes Statistiques</h1>
+        </div>
+        <div class="chart-container">
+          <h3>Évolution du Score de Chasseur</h3>
+          <canvas id="progressChart"></canvas>
+        </div>
       </section>
     </main>
 

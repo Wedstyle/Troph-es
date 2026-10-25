@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Mur des Platines + Graphique)
+   PS Trophy Viewer — app.js (Version Finale avec Page Stats)
    ============================================================ */
 
 (() => {
@@ -22,7 +22,7 @@
     filter: "all",
     sort: "default",
     soundEnabled: true,
-    chartInstance: null, // Pour garder une référence au graphique
+    chartInstance: null,
   };
 
   const GRADE_ORDER = ["platinum", "gold", "silver", "bronze"];
@@ -49,7 +49,7 @@
     );
 
   // ============================================================
-  // SYSTÈME DE NIVEAU PSN (Inchangé)
+  // SYSTÈME DE NIVEAU PSN
   // ============================================================
   const PSN_POINTS = { bronze: 15, silver: 30, gold: 90, platinum: 300 };
   const PSN_LEVEL_TIERS = [
@@ -249,35 +249,55 @@
     }
   }
 
-  // --- LOGIQUE GRAPHIQUE ---
-  function updateScoreHistory() {
-    const stats = getHunterLevel();
-    const today = new Date().toISOString().split("T")[0]; // Format YYYY-MM-DD
-    let history = JSON.parse(localStorage.getItem("ps5_score_history") || "{}");
-
-    // On enregistre le score du jour (on écrase si on recoche des trophées le même jour)
-    history[today] = stats.totalPoints;
-
-    localStorage.setItem("ps5_score_history", JSON.stringify(history));
-    renderChart();
-  }
-
+  // ============================================================
+  // GRAPHIQUE DE PROGRESSION
+  // ============================================================
   function renderChart() {
     const canvas = $("#progressChart");
     if (!canvas) return;
 
-    let history = JSON.parse(localStorage.getItem("ps5_score_history") || "{}");
+    // 1. Récupérer tous les trophées obtenus avec une date
+    let earnedTrophies = [];
+    state.games.forEach((g) => {
+      g.trophies.forEach((t) => {
+        if (t.earned && t.earnedTime) {
+          earnedTrophies.push({
+            date: t.earnedTime,
+            points: PSN_POINTS[t.grade] || 0,
+          });
+        }
+      });
+    });
 
-    // Si l'historique est vide, on initialise avec le score actuel
-    if (Object.keys(history).length === 0) {
-      const today = new Date().toISOString().split("T")[0];
-      history[today] = getHunterLevel().totalPoints;
-      localStorage.setItem("ps5_score_history", JSON.stringify(history));
+    // 2. Trier par date (du plus ancien au plus récent)
+    earnedTrophies.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // 3. Regrouper les points par jour
+    const dailyPoints = {};
+    earnedTrophies.forEach((t) => {
+      const day = t.date.split("T")[0];
+      if (!dailyPoints[day]) dailyPoints[day] = 0;
+      dailyPoints[day] += t.points;
+    });
+
+    // 4. Calculer le score cumulé
+    const labels = [];
+    const dataPoints = [];
+    let currentScore = 0;
+
+    for (const [day, points] of Object.entries(dailyPoints)) {
+      currentScore += points;
+      labels.push(day);
+      dataPoints.push(currentScore);
     }
 
-    const labels = Object.keys(history).sort();
-    const dataPoints = labels.map((date) => history[date]);
+    // Si l'utilisateur n'a encore rien coché, on met un point à 0
+    if (labels.length === 0) {
+      labels.push(new Date().toISOString().split("T")[0]);
+      dataPoints.push(0);
+    }
 
+    // 5. Dessiner le graphique
     if (state.chartInstance) {
       state.chartInstance.destroy();
     }
@@ -292,14 +312,15 @@
         }),
         datasets: [
           {
-            label: "Score",
+            label: "Score cumulé",
             data: dataPoints,
             borderColor: "#0072ce",
             backgroundColor: "rgba(0, 114, 206, 0.1)",
-            borderWidth: 2,
+            borderWidth: 3,
             pointBackgroundColor: "#fff",
             pointBorderColor: "#0072ce",
-            pointRadius: 3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
             fill: true,
             tension: 0.4,
           },
@@ -316,16 +337,23 @@
             bodyColor: "#a0a0a0",
             borderColor: "rgba(255,255,255,0.1)",
             borderWidth: 1,
+            padding: 10,
+            displayColors: false,
+            callbacks: {
+              label: function (context) {
+                return `${context.parsed.y} PTS`;
+              },
+            },
           },
         },
         scales: {
           x: {
             grid: { display: false },
-            ticks: { color: "#6a6a6a", font: { size: 10 } },
+            ticks: { color: "#6a6a6a", font: { size: 11 }, maxTicksLimit: 8 },
           },
           y: {
             grid: { color: "rgba(255,255,255,0.05)" },
-            ticks: { color: "#6a6a6a", font: { size: 10 } },
+            ticks: { color: "#6a6a6a", font: { size: 11 } },
             beginAtZero: true,
           },
         },
@@ -451,7 +479,7 @@
   // --- NAVIGATION ---
   function showView(name) {
     state.view = name;
-    ["dashboard", "game", "timeline", "platinums"].forEach((v) => {
+    ["dashboard", "game", "timeline", "platinums", "stats"].forEach((v) => {
       const el = $("#view-" + v);
       if (el) el.classList.toggle("hidden", v !== name);
     });
@@ -492,11 +520,20 @@
     showView("platinums");
   }
 
+  function goStats() {
+    playSound("select");
+    $$(".actions .btn").forEach((b) => b.classList.remove("active"));
+    $("#btn-nav-stats").classList.add("active");
+    showView("stats");
+    // On attend un petit délai pour que la div soit visible avant de dessiner le graphique
+    setTimeout(() => renderChart(), 50);
+  }
+
   // --- DASHBOARD ---
   function renderDashboard() {
     $("#games-count").textContent = `${state.games.length} jeu(x)`;
     renderHunterCard();
-    renderChart(); // On dessine le graphique
+    // ⚠️ Le graphique n'est plus ici, il est dans la vue stats
     renderGlobalStats();
     const grid = $("#game-grid");
 
@@ -737,9 +774,6 @@
 
           renderHunterCard();
           saveProgressToSupabase(game.npcommid, trophy.id, trophy.earned);
-
-          // 👇 MISE À JOUR DU GRAPHIQUE À CHAQUE CLIC
-          updateScoreHistory();
         }
       });
     });
@@ -826,14 +860,12 @@
     let platinums = [];
     state.games.forEach((g) => {
       g.trophies.forEach((t) => {
-        // Si le trophée est Platine, est obtenu et a une date
         if (t.grade === "platinum" && t.earned && t.earnedTime) {
           platinums.push({ ...t, gameTitle: g.title, gameIcon: g.iconUrl });
         }
       });
     });
 
-    // Tri par date (du plus récent au plus ancien)
     platinums.sort((a, b) => new Date(b.earnedTime) - new Date(a.earnedTime));
 
     $("#platinum-count").textContent = `${platinums.length} Platine(s)`;
@@ -862,6 +894,7 @@
   $("#btn-nav-dash").addEventListener("click", goDashboard);
   $("#btn-nav-timeline").addEventListener("click", goTimeline);
   $("#btn-nav-platinums").addEventListener("click", goPlatinums);
+  $("#btn-nav-stats").addEventListener("click", goStats);
 
   const btnSound = $("#btn-sound");
   if (btnSound) {
