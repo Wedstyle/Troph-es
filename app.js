@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — app.js (Version Finale)
+   PS Trophy Viewer — app.js (Version Finale Stable)
    ============================================================ */
 
 (() => {
@@ -566,26 +566,11 @@
           const dateHtml = t.earnedTime
             ? `<span class="tdate">Obtenu le ${new Date(t.earnedTime).toLocaleDateString("fr-FR")}</span>`
             : "";
-
-          // 👇 AJOUT DES BADGES DE RARETÉ ICI
-          const rarityHtml = t.rarity
-            ? `
-            <span class="rarity-badge ${t.rarity < 5 ? "ultra" : t.rarity < 15 ? "vrare" : t.rarity < 30 ? "rare" : "common"}">
-              ${t.rarity < 5 ? "Ultra Rare" : t.rarity < 15 ? "Très Rare" : t.rarity < 30 ? "Rare" : "Commun"} (${t.rarity}%)
-            </span>
-          `
-            : "";
-          // 👆 FIN DE L'AJOUT
-
           return `
       <li class="trophy-row${t.earned ? "" : " locked"}" data-tid="${t.id}">
         <div class="medal">${t.iconUrl ? `<img src="${t.iconUrl}" style="width:100%;height:100%;object-fit:cover;">` : trophySvg(t.grade, 26)}</div>
         <div class="tinfo"><div class="tname">${esc(t.name)}</div><div class="tdesc">${esc(t.description)}</div></div>
-        <div class="tmeta">
-          <span class="rarity">${esc(GRADE_LABEL[t.grade] || "Bronze")}</span>
-          ${rarityHtml}
-          ${dateHtml}
-        </div>
+        <div class="tmeta"><span class="rarity">${esc(GRADE_LABEL[t.grade] || "Bronze")}</span>${dateHtml}</div>
       </li>`;
         })
         .join("") +

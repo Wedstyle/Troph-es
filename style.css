@@ -1,5 +1,5 @@
 /* ============================================================
-   PS Trophy Viewer — Style PS5 (Version Finale)
+   PS Trophy Viewer — Style PS5 (Version Finale Stable)
    ============================================================ */
 *,
 *::before,
@@ -1021,32 +1021,4 @@ body::before {
     flex-direction: column;
     gap: 4px;
   }
-}
-/* Badges de rareté */
-.rarity-badge {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 99px;
-  margin-top: 4px;
-  display: inline-block;
-}
-.rarity-badge.common {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-.rarity-badge.rare {
-  background: rgba(0, 114, 206, 0.2);
-  color: #7db8ff;
-  border: 1px solid rgba(0, 114, 206, 0.5);
-}
-.rarity-badge.vrare {
-  background: rgba(155, 89, 182, 0.2);
-  color: #d0a9e8;
-  border: 1px solid rgba(155, 89, 182, 0.5);
-}
-.rarity-badge.ultra {
-  background: rgba(245, 193, 75, 0.2);
-  color: #f5c14b;
-  border: 1px solid rgba(245, 193, 75, 0.5);
 }
